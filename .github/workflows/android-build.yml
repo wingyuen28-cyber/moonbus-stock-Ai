@@ -12,22 +12,6 @@ jobs:
       - name: 檢查程式碼
         uses: actions/checkout@v4
 
-      - name: 設定 Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: 建立 www 目錄並從港交所抓取最新股票名單
-        run: |
-          mkdir -p www
-          python -m pip install --upgrade pip
-          pip install pandas requests xlrd openpyxl
-          python generate_stocks.py
-
-      - name: 複製 index.html 至 www 目錄
-        run: |
-          cp index.html www/
-
       - name: 設定 Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -38,6 +22,91 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+
+      - name: 建立 www 目錄並生成港股資料庫
+        run: |
+          mkdir -p www
+          python3 -c "
+          import json, os
+
+          stocks = {
+            '00001': {'name': '長和', 'category': '港股主板'},
+            '00002': {'name': '中電控股', 'category': '港股主板'},
+            '00003': {'name': '香港中華煤氣', 'category': '港股主板'},
+            '00005': {'name': '匯豐控股', 'category': '港股主板'},
+            '00006': {'name': '電能實業', 'category': '港股主板'},
+            '00011': {'name': '恒生銀行', 'category': '港股主板'},
+            '00012': {'name': '恒基地產', 'category': '港股主板'},
+            '00016': {'name': '新鴻基地產', 'category': '港股主板'},
+            '00017': {'name': '新世界發展', 'category': '港股主板'},
+            '00027': {'name': '銀河娛樂', 'category': '港股主板'},
+            '00066': {'name': '港鐵公司', 'category': '港股主板'},
+            '00101': {'name': '恒隆地產', 'category': '港股主板'},
+            '00175': {'name': '吉利汽車', 'category': '港股主板'},
+            '00267': {'name': '中信股份', 'category': '港股主板'},
+            '00288': {'name': '萬洲國際', 'category': '港股主板'},
+            '00316': {'name': '東方海外國際', 'category': '港股主板'},
+            '00386': {'name': '中國石油化工', 'category': '港股主板'},
+            '00388': {'name': '香港交易所', 'category': '港股主板'},
+            '00669': {'name': '創科實業', 'category': '港股主板'},
+            '00700': {'name': '騰訊控股', 'category': '港股主板'},
+            '00857': {'name': '中國石油天然氣', 'category': '港股主板'},
+            '00883': {'name': '中國海洋石油', 'category': '港股主板'},
+            '00939': {'name': '建設銀行', 'category': '港股主板'},
+            '00941': {'name': '中國移動', 'category': '港股主板'},
+            '00968': {'name': '信義光能', 'category': '港股主板'},
+            '00981': {'name': '中芯國際', 'category': '港股主板'},
+            '00992': {'name': '聯想集團', 'category': '港股主板'},
+            '01024': {'name': '快手-W', 'category': '港股主板'},
+            '01038': {'name': '長江基建集團', 'category': '港股主板'},
+            '01088': {'name': '中國神華', 'category': '港股主板'},
+            '01093': {'name': '石藥集團', 'category': '港股主板'},
+            '01109': {'name': '華潤置地', 'category': '港股主板'},
+            '01113': {'name': '長實集團', 'category': '港股主板'},
+            '01177': {'name': '中國生物製藥', 'category': '港股主板'},
+            '01211': {'name': '比亞迪股份', 'category': '港股主板'},
+            '01288': {'name': '農業銀行', 'category': '港股主板'},
+            '01299': {'name': '友邦保險', 'category': '港股主板'},
+            '01398': {'name': '工商銀行', 'category': '港股主板'},
+            '01810': {'name': '小米集團-W', 'category': '港股主板'},
+            '01928': {'name': '金沙中國有限公司', 'category': '港股主板'},
+            '01929': {'name': '周大福', 'category': '港股主板'},
+            '02015': {'name': '理想汽車-W', 'category': '港股主板'},
+            '02020': {'name': '安踏體育', 'category': '港股主板'},
+            '02269': {'name': '藥明生物', 'category': '港股主板'},
+            '02313': {'name': '申洲國際', 'category': '港股主板'},
+            '02318': {'name': '中國平安', 'category': '港股主板'},
+            '02319': {'name': '蒙牛乳業', 'category': '港股主板'},
+            '02331': {'name': '李寧', 'category': '港股主板'},
+            '02382': {'name': '舜宇光學科技', 'category': '港股主板'},
+            '02388': {'name': '中銀香港', 'category': '港股主板'},
+            '02600': {'name': '中國鋁業', 'category': '港股主板'},
+            '02628': {'name': '中國人壽', 'category': '港股主板'},
+            '02800': {'name': '盈富基金', 'category': 'ETF / 槓桿反向'},
+            '02828': {'name': '恒生中國企業', 'category': 'ETF / 槓桿反向'},
+            '03033': {'name': '南方東英恒生科技', 'category': 'ETF / 槓桿反向'},
+            '03690': {'name': '美團-W', 'category': '港股主板'},
+            '03968': {'name': '招商銀行', 'category': '港股主板'},
+            '03988': {'name': '中國銀行', 'category': '港股主板'},
+            '06618': {'name': '京東健康', 'category': '港股主板'},
+            '06690': {'name': '海爾智家', 'category': '港股主板'},
+            '09618': {'name': '京東集團-SW', 'category': '港股主板'},
+            '09866': {'name': '蔚來-SW', 'category': '港股主板'},
+            '09868': {'name': '小鵬汽車-W', 'category': '港股主板'},
+            '09888': {'name': '百度集團-SW', 'category': '港股主板'},
+            '09988': {'name': '阿里巴巴-SW', 'category': '港股主板'},
+            '09999': {'name': '網易-S', 'category': '港股主板'}
+          }
+
+          with open('www/stocks.json', 'w', encoding='utf-8') as f:
+            json.dump(stocks, f, ensure_ascii=False, indent=2)
+
+          print('Success! stocks.json created.')
+          "
+
+      - name: 複製 index.html 至 www 目錄
+        run: |
+          cp index.html www/
 
       - name: 安裝依賴套件
         run: npm install
