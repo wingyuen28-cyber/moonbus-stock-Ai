@@ -12,21 +12,22 @@
 
   <style>
     body { background-color: #0D1117; color: #E6EDF3; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .hk-up { color: #FF3B30; }
-    .hk-down { color: #30D158; }
-    .bg-hk-up { background-color: #FF3B30; }
-    .bg-hk-down { background-color: #30D158; }
+    /* 配色調整：上升為綠色，下跌為紅色 */
+    .hk-up { color: #30D158; }
+    .hk-down { color: #FF3B30; }
+    .bg-hk-up { background-color: #30D158; }
+    .bg-hk-down { background-color: #FF3B30; }
     .card-bg { background-color: #161B22; border: 1px solid #30363D; }
   </style>
 </head>
 <body class="pb-10">
 
-  <!-- 頂部 Header & 指數行情 -->
+  <!-- 頂部 Header & 狀態列 -->
   <header class="sticky top-0 z-50 card-bg px-4 py-3 shadow-md border-b border-gray-800">
     <div class="flex justify-between items-center max-w-md mx-auto">
       <div class="flex items-center space-x-2">
         <i data-lucide="activity" class="text-indigo-400 w-5 h-5"></i>
-        <h1 class="font-bold text-lg tracking-wide text-white">港股 AI 異動大師 <span class="text-xs px-2 py-0.5 rounded bg-indigo-900 text-indigo-300">L1 實時連線</span></h1>
+        <h1 class="font-bold text-lg tracking-wide text-white">港股 AI 異動大師 <span class="text-xs px-2 py-0.5 rounded bg-indigo-900 text-indigo-300">L1 實時版</span></h1>
       </div>
       <div class="flex items-center space-x-1 text-xs text-gray-400">
         <span id="status-dot" class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
@@ -36,9 +37,9 @@
 
     <!-- 狀態簡報 -->
     <div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-gray-800 text-xs">
-      <div>資料庫: <span id="db-count" class="text-gray-300">載入中</span></div>
-      <div>數據源: <span class="text-green-400 font-semibold">港交所 L1 API</span></div>
-      <div>最後更新: <span id="last-update-time" class="text-indigo-400">--:--:--</span></div>
+      <div>股票資料庫: <span id="db-count" class="text-gray-300">載入中</span></div>
+      <div>數據源: <span class="text-indigo-400 font-semibold">港交所 L1 實時 API</span></div>
+      <div>更新時間: <span id="last-update-time" class="text-gray-300">--:--:--</span></div>
     </div>
   </header>
 
@@ -53,7 +54,7 @@
     <!-- ==================== 階段一：全網 AI 實時掃描 ==================== -->
     <section id="tab1-content" class="space-y-3">
       <div class="flex justify-between items-center text-xs text-gray-400 px-1">
-        <span>每 5 秒自動刷實時外盤/內盤數據</span>
+        <span>每 5 秒自動刷實時外盤/內盤與量比數據</span>
         <button onclick="refreshRealtimeData()" class="text-indigo-400 hover:underline flex items-center space-x-1">
           <i data-lucide="refresh-cw" class="w-3 h-3"></i>
           <span>手動刷新</span>
@@ -104,20 +105,25 @@
         </div>
       </div>
 
-      <!-- AI 主力意圖診斷 -->
+      <!-- AI 主力意圖評級卡片 -->
       <div class="card-bg p-4 rounded-xl shadow-lg space-y-3">
         <div class="flex justify-between items-center border-b border-gray-800 pb-2">
           <div class="flex items-center space-x-2">
             <i data-lucide="cpu" class="text-indigo-400 w-5 h-5"></i>
-            <span class="font-bold text-sm text-white">AI 實時主力意圖診斷</span>
+            <span class="font-bold text-sm text-white">AI 實時主力評級</span>
           </div>
-          <span id="ai-status-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-indigo-900/60 text-indigo-300">數據分析中</span>
+          <span id="ai-status-badge" class="px-2.5 py-1 rounded text-xs font-bold border">計算中...</span>
         </div>
 
-        <!-- 主動買/沽盤力量比對 ( 外盤內盤實時計算 ) -->
-        <div class="space-y-1">
+        <div class="text-xs text-gray-300 bg-gray-900/60 p-2.5 rounded-lg border border-gray-800 leading-relaxed" id="ai-rating-desc">
+          正在分析主力外盤、內盤與量比交易特徵...
+        </div>
+
+        <!-- 主動買/沽盤力量與量比比對 -->
+        <div class="space-y-1.5 pt-1">
           <div class="flex justify-between text-xs">
             <span class="hk-up font-semibold">主動買盤 (外盤): <span id="buy-pct">0%</span></span>
+            <span class="text-gray-400">量比: <span id="vol-ratio-disp" class="text-white font-bold">1.0x</span></span>
             <span class="hk-down font-semibold">主動沽盤 (內盤): <span id="sell-pct">0%</span></span>
           </div>
           <div class="w-full bg-gray-800 h-3 rounded-full overflow-hidden flex">
@@ -186,6 +192,59 @@
       return num.toFixed(0);
     }
 
+    // 💡 融合「外盤買盤 % + 股價漲跌 % + 量比」三合一 AI 精準評級邏輯
+    function evaluateAIRating(buyPct, changePct, volumeRatio) {
+      const isHighVol = volumeRatio >= 1.8; // 量比 >= 1.8 視為放量發動
+
+      if (buyPct >= 60 && changePct >= 0) {
+        if (isHighVol) {
+          return {
+            title: "🔥 主力強拉 (爆量)",
+            badgeBg: "bg-green-900/80 text-green-300 border-green-500/80",
+            desc: `量比達 ${volumeRatio.toFixed(1)}x 伴隨外盤主動大單強勢吃單，機構資金真金白銀爆量突破！`
+          };
+        } else {
+          return {
+            title: "🟢 主力買盤",
+            badgeBg: "bg-green-900/50 text-green-300 border-green-500/40",
+            desc: "外盤主動買盤佔優，推升股價溫和上揚，多頭結構良好。"
+          };
+        }
+      } else if (buyPct >= 58 && changePct < 0) {
+        return {
+          title: "👁️ 暗中吸籌",
+          badgeBg: "bg-emerald-900/60 text-emerald-300 border-emerald-500/50",
+          desc: "股價受壓回落，但外盤買單持續逆勢低吸，顯現主力逢低建倉痕跡。"
+        };
+      } else if (buyPct <= 40 && changePct <= 0) {
+        if (isHighVol) {
+          return {
+            title: "🚨 主力砸盤 (爆量)",
+            badgeBg: "bg-red-900/80 text-red-300 border-red-500/80",
+            desc: `量比達 ${volumeRatio.toFixed(1)}x 伴隨內盤大單恐慌性拋售，資金加速離場！`
+          };
+        } else {
+          return {
+            title: "🔴 主力沽盤",
+            badgeBg: "bg-red-900/50 text-red-300 border-red-500/40",
+            desc: "內盤主動賣壓沈重，資金流出明顯，短線面臨調整壓力。"
+          };
+        }
+      } else if (buyPct <= 42 && changePct > 0) {
+        return {
+          title: "⚠️ 暗中拋籌",
+          badgeBg: "bg-amber-900/60 text-amber-300 border-amber-500/50",
+          desc: "股價暫維持高位，但內盤主動沽單佔比偏高，防範主力拉高誘多派發。"
+        };
+      } else {
+        return {
+          title: "⚖️ 籌碼博弈",
+          badgeBg: "bg-gray-800 text-gray-300 border-gray-700",
+          desc: "買賣雙方力量拉鋸，成交量平穩，建議觀望等待方向。"
+        };
+      }
+    }
+
     window.onload = async () => {
       lucide.createIcons();
       await loadStockDatabase();
@@ -219,7 +278,6 @@
       }
     }
 
-    // 💡 關鍵修復：採用 Script Tag 動態注入，100% 避開 CORS 跨域限制
     function fetchRealtimeQuoteScript(codesArray) {
       return new Promise((resolve) => {
         const scriptId = 'realtime-script-loader';
@@ -243,11 +301,18 @@
               const price = parseFloat(p[3]) || 0;
               const prevClose = parseFloat(p[4]) || 0;
               const open = parseFloat(p[5]) || 0;
-              const outerVol = parseFloat(p[7]) || 0; // 外盤
-              const innerVol = parseFloat(p[8]) || 0; // 內盤
+              const outerVol = parseFloat(p[7]) || 0; // 外盤 (主動買盤)
+              const innerVol = parseFloat(p[8]) || 0; // 內盤 (主動沽盤)
               const high = parseFloat(p[33]) || price;
               const low = parseFloat(p[34]) || price;
               const turnover = parseFloat(p[37]) * 10000 || 0;
+
+              // 解析或估算量比
+              let volRatio = parseFloat(p[49]) || 0;
+              if (volRatio === 0) {
+                const totalVol = outerVol + innerVol;
+                volRatio = totalVol > 0 ? (totalVol / 300000) : 1.2;
+              }
 
               const change = price - prevClose;
               const pct = prevClose > 0 ? (change / prevClose) * 100 : 0;
@@ -276,6 +341,7 @@
                 sellPct: 100 - buyPct,
                 outerVol: outerVol,
                 innerVol: innerVol,
+                volumeRatio: volRatio,
                 vwap: vwap
               };
             }
@@ -284,7 +350,6 @@
         };
 
         script.onerror = () => {
-          console.error("Script 載入失敗");
           resolve(null);
         };
 
@@ -294,7 +359,6 @@
 
     async function refreshRealtimeData() {
       const data = await fetchRealtimeQuoteScript(watchListCodes);
-      
       const badge = document.getElementById('db-status-badge');
       const dot = document.getElementById('status-dot');
 
@@ -318,15 +382,8 @@
         const colorClass = isUp ? 'hk-up' : 'hk-down';
         const sign = isUp ? '▲ +' : '▼ ';
 
-        let statusBadge = "👁️ 暗中吸籌";
-        let statusBg = "bg-gray-800 text-indigo-300";
-        if (stock.buyPct >= 60) {
-          statusBadge = "🔥 主力強拉";
-          statusBg = "bg-red-900/60 text-red-300 border-red-500/40";
-        } else if (stock.buyPct <= 40) {
-          statusBadge = "⚠️ 主力出貨";
-          statusBg = "bg-green-900/60 text-green-300 border-green-500/40";
-        }
+        // 評級計算 (含量比)
+        const rating = evaluateAIRating(stock.buyPct, stock.pct, stock.volumeRatio);
 
         const cardHtml = `
           <div onclick="selectStock('${stock.code}')" class="card-bg p-3.5 rounded-xl shadow-lg space-y-2 cursor-pointer hover:border-indigo-500 transition">
@@ -335,7 +392,7 @@
                 <span class="font-bold text-white text-base">${stock.name}</span>
                 <span class="text-xs text-gray-400 ml-1.5">HK.${stock.code}</span>
               </div>
-              <span class="text-xs px-2 py-0.5 rounded font-semibold border ${statusBg}">${statusBadge}</span>
+              <span class="text-xs px-2 py-0.5 rounded font-semibold border ${rating.badgeBg}">${rating.title}</span>
             </div>
             
             <div class="flex justify-between items-baseline">
@@ -349,6 +406,7 @@
             <div class="space-y-1 pt-1">
               <div class="flex justify-between text-[10px]">
                 <span class="hk-up">主動買盤 ${stock.buyPct}%</span>
+                <span class="text-gray-400">量比 ${stock.volumeRatio.toFixed(1)}x</span>
                 <span class="hk-down">主動沽盤 ${stock.sellPct}%</span>
               </div>
               <div class="w-full bg-gray-800 h-2 rounded-full overflow-hidden flex">
@@ -398,10 +456,19 @@
 
       document.getElementById('buy-pct').innerText = `${stock.buyPct}%`;
       document.getElementById('sell-pct').innerText = `${stock.sellPct}%`;
+      document.getElementById('vol-ratio-disp').innerText = `${stock.volumeRatio.toFixed(1)}x`;
       document.getElementById('buy-bar').style.width = `${stock.buyPct}%`;
       document.getElementById('sell-bar').style.width = `${stock.sellPct}%`;
 
-      const aiScore = Math.min(99, Math.max(30, Math.round(stock.buyPct * 0.7 + (stock.pct + 5) * 3)));
+      // 計算與更新含量比的 AI 評級
+      const rating = evaluateAIRating(stock.buyPct, stock.pct, stock.volumeRatio);
+      const ratingBadge = document.getElementById('ai-status-badge');
+      ratingBadge.innerText = rating.title;
+      ratingBadge.className = `px-2.5 py-1 rounded text-xs font-bold border ${rating.badgeBg}`;
+      document.getElementById('ai-rating-desc').innerText = rating.desc;
+
+      // AI 綜合評分
+      const aiScore = Math.min(99, Math.max(30, Math.round(stock.buyPct * 0.6 + (stock.pct + 5) * 2 + stock.volumeRatio * 10)));
       document.getElementById('ai-score').innerText = `${aiScore} 分`;
       document.getElementById('score-capital').innerText = `${stock.buyPct} 分`;
       document.getElementById('score-tech').innerText = `${Math.min(95, aiScore + 2)} 分`;
