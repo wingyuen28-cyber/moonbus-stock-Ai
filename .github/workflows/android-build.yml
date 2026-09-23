@@ -23,13 +23,21 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: 安裝套件並同步 Android 專案
+      - name: 準備網頁檔目錄 (www)
         run: |
-          npm install
-          npx cap add android
-          npx cap sync android
+          mkdir -p www
+          cp index.html www/
 
-      - name: 編譯 Android APK (Debug 可直接安裝版)
+      - name: 安裝依賴套件
+        run: npm install
+
+      - name: 建立並同步 Android 專案
+        run: |
+          rm -rf android
+          npx --yes cap add android
+          npx --yes cap sync android
+
+      - name: 編譯 Android APK
         run: |
           cd android
           chmod +x gradlew
