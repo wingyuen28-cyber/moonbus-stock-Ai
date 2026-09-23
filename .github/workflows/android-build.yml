@@ -1,0 +1,43 @@
+name: 自動打包 Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 檢查程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安裝 Capacitor 打包工具
+        run: |
+          npm install -g @capacitor/cli @capacitor/core
+          npm install @capacitor/android
+          npx cap init "HK Stock AI" "com.hkstock.aifunc" --web-dir .
+          npx cap add android
+
+      - name: 設定 Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 開始編譯 APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: 上傳 APK 至 GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: hk-stock-ai-app-android
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
