@@ -1,6 +1,6 @@
 {
   "appId": "com.hkstock.aifunc",
   "appName": "HK Stock AI",
-  "webDir": ".",
+  "webDir": "www",
   "bundledWebRuntime": false
 }
