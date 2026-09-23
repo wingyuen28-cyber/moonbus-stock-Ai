@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>港股 AI 實時異動與主力資金分析</title>
+
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js for VWAP Chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body { background-color: #0D1117; color: #E6EDF3; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    /* 港股配色規範：紅漲綠跌 */
+    .hk-up { color: #FF3B30; }
+    .hk-down { color: #30D158; }
+    .bg-hk-up { background-color: #FF3B30; }
+    .bg-hk-down { background-color: #30D158; }
+    .card-bg { background-color: #161B22; border: 1px solid #30363D; }
+  </style>
+</head>
+<body class="pb-10">
+
+  <!-- 頂部 Header & 指數行情 -->
+  <header class="sticky top-0 z-50 card-bg px-4 py-3 shadow-md border-b border-gray-800">
+    <div class="flex justify-between items-center max-w-md mx-auto">
+      <div class="flex items-center space-x-2">
+        <i data-lucide="activity" class="text-indigo-400 w-5 h-5"></i>
+        <h1 class="font-bold text-lg tracking-wide text-white">港股 AI 異動大師 <span class="text-xs px-2 py-0.5 rounded bg-indigo-900 text-indigo-300">L1 實時版</span></h1>
+      </div>
+      <div class="flex items-center space-x-1 text-xs text-gray-400">
+        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+        <span>AI 監測中</span>
+      </div>
+    </div>
+
+    <!-- 恆指/科指簡報 -->
+    <div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-gray-800 text-xs">
+      <div>恆指: <span class="hk-up font-semibold">17,842.50 (+1.15%)</span></div>
+      <div>科指: <span class="hk-up font-semibold">3,650.20 (+2.30%)</span></div>
+      <div>成交: <span class="text-gray-300 font-semibold">985 億</span></div>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto px-4 mt-4 space-y-4">
+
+    <!-- 頁面 Tab 切換區 -->
+    <div class="flex rounded-lg bg-gray-900 p-1 border border-gray-800">
+      <button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition">階段一：全網 AI 異動掃描</button>
+      <button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2 text-sm font-medium rounded-md text-gray-400 transition">階段二：個股深度分析</button>
+    </div>
+
+    <!-- ==================== 階段一：全網 AI 異動清單 ==================== -->
+    <section id="tab1-content" class="space-y-3">
+      
+      <!-- 篩選器 -->
+      <div class="flex space-x-2 overflow-x-auto pb-1 text-xs">
+        <button onclick="filterCards('all')" class="px-3 py-1.5 rounded-full card-bg border border-indigo-500 text-indigo-300 font-medium">全部異動</button>
+        <button onclick="filterCards('pull')" class="px-3 py-1.5 rounded-full card-bg text-gray-400 hover:text-white">🔥 主力發動</button>
+        <button onclick="filterCards('buy')" class="px-3 py-1.5 rounded-full card-bg text-gray-400 hover:text-white">👁️ 暗中吸籌</button>
+        <button onclick="filterCards('sell')" class="px-3 py-1.5 rounded-full card-bg text-gray-400 hover:text-white">⚠️ 資金出貨</button>
+      </div>
+
+      <!-- 異動股票列表 -->
+      <div id="stock-list" class="space-y-3">
+        <!-- JS 動態渲染股票卡片 -->
+      </div>
+    </section>
+
+    <!-- ==================== 階段二：個股搜尋與深度分析 ==================== -->
+    <section id="tab2-content" class="space-y-4 hidden">
+      
+      <!-- 手動搜尋欄 -->
+      <div class="card-bg p-3 rounded-xl shadow-lg">
+        <label class="block text-xs font-medium text-gray-400 mb-1">手動輸入股份代號針對性分析：</label>
+        <div class="flex space-x-2">
+          <input type="text" id="search-input" placeholder="例如: 700, 9988, 3690" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+          <button onclick="handleSearch()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-1">
+            <i data-lucide="search" class="w-4 h-4"></i>
+            <span>分析</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 實時報價抬頭卡片 -->
+      <div id="quote-header" class="card-bg p-4 rounded-xl shadow-lg space-y-2">
+        <div class="flex justify-between items-start">
+          <div>
+            <h2 id="stock-name" class="text-xl font-bold text-white">騰訊控股</h2>
+            <div id="stock-code" class="text-xs text-gray-400">00700.HK · 實時報價</div>
+          </div>
+          <div class="text-right">
+            <div id="stock-price" class="text-2xl font-black hk-up">$388.40</div>
+            <div id="stock-change" class="text-xs font-semibold hk-up">▲ +12.20 (+3.24%)</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-4 gap-2 pt-2 border-t border-gray-800 text-center text-xs">
+          <div><span class="text-gray-500 block">昨收</span><span id="prev-close" class="text-gray-300 font-medium">$376.20</span></div>
+          <div><span class="text-gray-500 block">今開</span><span id="open-price" class="text-gray-300 font-medium">$378.00</span></div>
+          <div><span class="text-gray-500 block">最高</span><span id="high-price" class="text-gray-300 font-medium">$390.00</span></div>
+          <div><span class="text-gray-500 block">最低</span><span id="low-price" class="text-gray-300 font-medium">$377.60</span></div>
+        </div>
+      </div>
+
+      <!-- AI 主力意圖診斷 -->
+      <div class="card-bg p-4 rounded-xl shadow-lg space-y-3">
+        <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="cpu" class="text-indigo-400 w-5 h-5"></i>
+            <span class="font-bold text-sm text-white">AI 主力意圖診斷</span>
+          </div>
+          <span id="ai-status-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-red-900/60 text-red-300 border border-red-500/40">🔥 主力拉升中</span>
+        </div>
+
+        <!-- 主動買/沽盤力量比對 -->
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs">
+            <span class="hk-up font-semibold">主動買盤: <span id="buy-pct">72%</span> ($4.2億)</span>
+            <span class="hk-down font-semibold">主動沽盤: <span id="sell-pct">28%</span> ($1.6億)</span>
+          </div>
+          <div class="w-full bg-gray-800 h-3 rounded-full overflow-hidden flex">
+            <div id="buy-bar" class="bg-hk-up h-full transition-all duration-500" style="width: 72%;"></div>
+            <div id="sell-bar" class="bg-hk-down h-full transition-all duration-500" style="width: 28%;"></div>
+          </div>
+        </div>
+
+        <!-- 分時圖表 + VWAP -->
+        <div class="pt-2">
+          <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
+            <span>實時價格 (白) vs VWAP 機構成本線 (黃)</span>
+            <span class="text-indigo-400">5分鐘 Tick 計算</span>
+          </div>
+          <div class="h-40 w-full">
+            <canvas id="vwapChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI 0-100 綜合評分與風控指引 -->
+      <div class="card-bg p-4 rounded-xl shadow-lg space-y-3">
+        <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+          <span class="font-bold text-sm text-white">AI 綜合戰術診斷</span>
+          <div class="text-right">
+            <span class="text-xs text-gray-400">綜合打分：</span>
+            <span id="ai-score" class="text-xl font-black text-indigo-400">88 分</span>
+          </div>
+        </div>
+
+        <!-- 三維度得分 -->
+        <div class="grid grid-cols-3 gap-2 text-center text-xs">
+          <div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
+            <span class="text-gray-400 block">資金面</span>
+            <span id="score-capital" class="font-bold hk-up">92 分</span>
+          </div>
+          <div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
+            <span class="text-gray-400 block">技術面</span>
+            <span id="score-tech" class="font-bold text-indigo-300">85 分</span>
+          </div>
+          <div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
+            <span class="text-gray-400 block">動能面</span>
+            <span id="score-momentum" class="font-bold hk-up">88 分</span>
+          </div>
+        </div>
+
+        <!-- 關鍵操作點位指引 -->
+        <div class="bg-indigo-950/30 border border-indigo-800/50 p-3 rounded-lg text-xs space-y-1.5">
+          <div class="flex justify-between"><span class="text-gray-400">💡 建議策略：</span><span id="strategy-action" class="font-bold text-indigo-300">適宜跟進 / 分批吸籌</span></div>
+          <div class="flex justify-between"><span class="text-gray-400">🎯 參考入場位：</span><span id="target-entry" class="font-medium text-white">$385.00 - $386.50 (回踩 VWAP 附近)</span></div>
+          <div class="flex justify-between"><span class="text-gray-400">🛡️ 風控止損位：</span><span id="target-stop" class="font-medium hk-down">$380.00 (跌破當日低位)</span></div>
+          <div class="flex justify-between"><span class="text-gray-400">🚀 短線目標位：</span><span id="target-profit" class="font-medium hk-up">$402.00 (近20日高位阻力)</span></div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    // 預設模擬股票資料庫
+    const stocksDatabase = {
+      "00700": { code: "00700.HK", name: "騰訊控股", price: 388.40, change: 12.20, pct: 3.24, prevClose: 376.20, open: 378.00, high: 390.00, low: 377.60, buyPct: 72, volumeRatio: 3.4, turnover: "12.8億", status: "pull", statusName: "🔥 主力發動", score: 88, capScore: 92, techScore: 85, momScore: 88, trigger: "5分鐘內成交突增 400%，大單主動吃單突破 VWAP" },
+      "09988": { code: "09988.HK", name: "阿里巴巴", price: 82.50, change: 2.10, pct: 2.61, prevClose: 80.40, open: 80.80, high: 83.00, low: 80.50, buyPct: 68, volumeRatio: 2.8, turnover: "8.5億", status: "buy", statusName: "👁️ 暗中吸籌", score: 81, capScore: 85, techScore: 80, momScore: 78, trigger: "窄幅震盪中主動買盤持續 >65%，成交量溫和放大" },
+      "03690": { code: "03690.HK", name: "美團-W", price: 118.20, change: -3.80, pct: -3.11, prevClose: 122.00, open: 121.50, high: 121.80, low: 117.50, buyPct: 31, volumeRatio: 3.1, turnover: "9.2億", status: "sell", statusName: "⚠️ 資金出貨", score: 42, capScore: 35, techScore: 45, momScore: 46, trigger: "高位特大單持續砸盤，價格跌破當日 VWAP 支撐" },
+      "01810": { code: "01810.HK", name: "小米集團-W", price: 18.90, change: 0.85, pct: 4.71, prevClose: 18.05, open: 18.10, high: 19.00, low: 18.00, buyPct: 79, volumeRatio: 4.2, turnover: "6.1億", status: "pull", statusName: "🔥 主力發動", score: 91, capScore: 95, techScore: 88, momScore: 90, trigger: "南向資金大幅淨流入，量比突破 4.0 強勢拉升" }
+    };
+
+    let vwapChartInstance = null;
+
+    // 初始化渲染
+    window.onload = () => {
+      lucide.createIcons();
+      renderStockList('all');
+      initVWAPChart([378, 380, 382, 381, 384, 386, 388.4], [377.5, 379, 380.5, 381, 382.5, 384, 385.2]);
+    };
+
+    // 切換 Tab
+    function switchTab(tabNum) {
+      if (tabNum === 1) {
+        document.getElementById('tab1-content').classList.remove('hidden');
+        document.getElementById('tab2-content').classList.add('hidden');
+        document.getElementById('tab1-btn').className = "flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition";
+        document.getElementById('tab2-btn').className = "flex-1 py-2 text-sm font-medium rounded-md text-gray-400 transition";
+      } else {
+        document.getElementById('tab2-content').classList.remove('hidden');
+        document.getElementById('tab1-content').classList.add('hidden');
+        document.getElementById('tab2-btn').className = "flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition";
+        document.getElementById('tab1-btn').className = "flex-1 py-2 text-sm font-medium rounded-md text-gray-400 transition";
+      }
+    }
+
+    // 渲染階段一卡片列表
+    function renderStockList(filterType) {
+      const listContainer = document.getElementById('stock-list');
+      listContainer.innerHTML = '';
+
+      Object.values(stocksDatabase).forEach(stock => {
+        if (filterType !== 'all' && stock.status !== filterType) return;
+
+        const isUp = stock.change >= 0;
+        const colorClass = isUp ? 'hk-up' : 'hk-down';
+        const sign = isUp ? '▲ +' : '▼ ';
+
+        const cardHtml = `
+          <div onclick="selectStock('${stock.code.replace('.HK','')}')" class="card-bg p-3.5 rounded-xl shadow-lg space-y-2 cursor-pointer hover:border-indigo-500 transition">
+            <div class="flex justify-between items-center">
+              <div>
+                <span class="font-bold text-white text-base">${stock.name}</span>
+                <span class="text-xs text-gray-400 ml-1.5">${stock.code}</span>
+              </div>
+              <span class="text-xs px-2 py-0.5 rounded font-semibold bg-gray-800 text-indigo-300 border border-gray-700">${stock.statusName} (${stock.score}分)</span>
+            </div>
+            
+            <div class="flex justify-between items-baseline">
+              <div>
+                <span class="text-xl font-black ${colorClass}">$${stock.price.toFixed(2)}</span>
+                <span class="text-xs font-semibold ${colorClass} ml-2">${sign}${stock.change.toFixed(2)} (${stock.pct.toFixed(2)}%)</span>
+              </div>
+              <div class="text-xs text-gray-400">成交額: <span class="text-white">${stock.turnover}</span> | 量比: <span class="text-white">${stock.volumeRatio}</span></div>
+            </div>
+
+            <!-- 主動買/沽盤進度條 -->
+            <div class="space-y-1 pt-1">
+              <div class="flex justify-between text-[10px]">
+                <span class="hk-up">主動買盤 ${stock.buyPct}%</span>
+                <span class="hk-down">主動沽盤 ${100 - stock.buyPct}%</span>
+              </div>
+              <div class="w-full bg-gray-800 h-2 rounded-full overflow-hidden flex">
+                <div class="bg-hk-up h-full" style="width: ${stock.buyPct}%;"></div>
+                <div class="bg-hk-down h-full" style="width: ${100 - stock.buyPct}%;"></div>
+              </div>
+            </div>
+
+            <div class="text-[11px] text-gray-400 pt-1 border-t border-gray-800/60 flex items-center space-x-1">
+              <i data-lucide="zap" class="w-3 h-3 text-yellow-400"></i>
+              <span>${stock.trigger}</span>
+            </div>
+          </div>
+        `;
+        listContainer.innerHTML += cardHtml;
+      });
+      lucide.createIcons();
+    }
+
+    // 篩選卡片
+    function filterCards(type) {
+      renderStockList(type);
+    }
+
+    // 手動搜尋與點擊卡片選擇股票
+    function selectStock(rawCode) {
+      const code = rawCode.padStart(5, '0');
+      let stock = stocksDatabase[code];
+
+      // 如果輸入未預設的股票，動態生成模擬報價
+      if (!stock) {
+        stock = {
+          code: `${code}.HK`, name: `個股 (${code})`, price: 45.20, change: 1.50, pct: 3.43,
+          prevClose: 43.70, open: 44.00, high: 45.80, low: 43.90, buyPct: 65, volumeRatio: 2.1,
+          turnover: "2.4億", status: "buy", statusName: "👁️ 暗中吸籌", score: 76,
+          capScore: 78, techScore: 75, momScore: 75, trigger: "資金穩步流入，主動買盤高於大盤平均"
+        };
+      }
+
+      // 更新階段二報價抬頭
+      document.getElementById('stock-name').innerText = stock.name;
+      document.getElementById('stock-code').innerText = `${stock.code} · 實時報價`;
+      
+      const isUp = stock.change >= 0;
+      const priceElem = document.getElementById('stock-price');
+      const changeElem = document.getElementById('stock-change');
+
+      priceElem.innerText = `$${stock.price.toFixed(2)}`;
+      priceElem.className = `text-2xl font-black ${isUp ? 'hk-up' : 'hk-down'}`;
+
+      changeElem.innerText = `${isUp ? '▲ +' : '▼ '}${stock.change.toFixed(2)} (${stock.pct.toFixed(2)}%)`;
+      changeElem.className = `text-xs font-semibold ${isUp ? 'hk-up' : 'hk-down'}`;
+
+      document.getElementById('prev-close').innerText = `$${stock.prevClose.toFixed(2)}`;
+      document.getElementById('open-price').innerText = `$${stock.open.toFixed(2)}`;
+      document.getElementById('high-price').innerText = `$${stock.high.toFixed(2)}`;
+      document.getElementById('low-price').innerText = `$${stock.low.toFixed(2)}`;
+
+      // 更新 AI 分析
+      document.getElementById('buy-pct').innerText = `${stock.buyPct}%`;
+      document.getElementById('sell-pct').innerText = `${100 - stock.buyPct}%`;
+      document.getElementById('buy-bar').style.width = `${stock.buyPct}%`;
+      document.getElementById('sell-bar').style.width = `${100 - stock.buyPct}%`;
+
+      document.getElementById('ai-status-badge').innerText = stock.statusName;
+      document.getElementById('ai-score').innerText = `${stock.score} 分`;
+      document.getElementById('score-capital').innerText = `${stock.capScore} 分`;
+      document.getElementById('score-tech').innerText = `${stock.techScore} 分`;
+      document.getElementById('score-momentum').innerText = `${stock.momScore} 分`;
+
+      // 切換至階段二 Tab
+      switchTab(2);
+    }
+
+    function handleSearch() {
+      const val = document.getElementById('search-input').value.trim();
+      if (val) selectStock(val);
+    }
+
+    // 初始化/更新 VWAP 圖表
+    function initVWAPChart(priceData, vwapData) {
+      const ctx = document.getElementById('vwapChart').getContext('2d');
+      if (vwapChartInstance) vwapChartInstance.destroy();
+
+      vwapChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['09:30', '10:00', '10:30', '11:00', '13:00', '14:00', '15:00'],
+          datasets: [
+            { label: '實時現價', data: priceData, borderColor: '#FFFFFF', borderWidth: 2, pointRadius: 0, tension: 0.2 },
+            { label: 'VWAP 成本線', data: vwapData, borderColor: '#F59E0B', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: '#1F2937' }, ticks: { color: '#9CA3AF', font: { size: 10 } } },
+            y: { grid: { color: '#1F2937' }, ticks: { color: '#9CA3AF', font: { size: 10 } } }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
