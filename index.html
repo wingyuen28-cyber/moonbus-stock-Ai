@@ -29,16 +29,16 @@
         <h1 class="font-bold text-lg tracking-wide text-white">港股 AI 異動大師 <span class="text-xs px-2 py-0.5 rounded bg-indigo-900 text-indigo-300">L1 實時連線</span></h1>
       </div>
       <div class="flex items-center space-x-1 text-xs text-gray-400">
-        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-        <span id="db-status-badge">實時 API 已連線</span>
+        <span id="status-dot" class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+        <span id="db-status-badge">連線中...</span>
       </div>
     </div>
 
-    <!-- 恆指實時簡報 -->
+    <!-- 狀態簡報 -->
     <div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-gray-800 text-xs">
-      <div>恆指 (HSI): <span id="hsi-price" class="font-semibold text-gray-300">載入中...</span></div>
-      <div>成交額: <span id="hsi-turnover" class="text-gray-300 font-semibold">-- 億</span></div>
-      <div>更新時間: <span id="last-update-time" class="text-indigo-400">--:--:--</span></div>
+      <div>資料庫: <span id="db-count" class="text-gray-300">載入中</span></div>
+      <div>數據源: <span class="text-green-400 font-semibold">港交所 L1 API</span></div>
+      <div>最後更新: <span id="last-update-time" class="text-indigo-400">--:--:--</span></div>
     </div>
   </header>
 
@@ -53,16 +53,16 @@
     <!-- ==================== 階段一：全網 AI 實時掃描 ==================== -->
     <section id="tab1-content" class="space-y-3">
       <div class="flex justify-between items-center text-xs text-gray-400 px-1">
-        <span>每 5 秒自動連線港交所刷實時數據</span>
+        <span>每 5 秒自動刷實時外盤/內盤數據</span>
         <button onclick="refreshRealtimeData()" class="text-indigo-400 hover:underline flex items-center space-x-1">
           <i data-lucide="refresh-cw" class="w-3 h-3"></i>
           <span>手動刷新</span>
         </button>
       </div>
 
-      <!-- 異動股票列表 (實時數據渲染) -->
+      <!-- 異動股票列表 -->
       <div id="stock-list" class="space-y-3">
-        <div class="text-center py-8 text-gray-500 text-sm">正在獲取港交所實時行情...</div>
+        <div class="text-center py-8 text-gray-500 text-sm">正在連線港交所獲取實時行情...</div>
       </div>
     </section>
 
@@ -114,11 +114,11 @@
           <span id="ai-status-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-indigo-900/60 text-indigo-300">數據分析中</span>
         </div>
 
-        <!-- 主動買/沽盤力量比對 ( Tick Rule / 外盤內盤實時計算 ) -->
+        <!-- 主動買/沽盤力量比對 ( 外盤內盤實時計算 ) -->
         <div class="space-y-1">
           <div class="flex justify-between text-xs">
-            <span class="hk-up font-semibold">主動買盤 (外盤): <span id="buy-pct">0%</span> (<span id="buy-val">--</span>)</span>
-            <span class="hk-down font-semibold">主動沽盤 (內盤): <span id="sell-pct">0%</span> (<span id="sell-val">--</span>)</span>
+            <span class="hk-up font-semibold">主動買盤 (外盤): <span id="buy-pct">0%</span></span>
+            <span class="hk-down font-semibold">主動沽盤 (內盤): <span id="sell-pct">0%</span></span>
           </div>
           <div class="w-full bg-gray-800 h-3 rounded-full overflow-hidden flex">
             <div id="buy-bar" class="bg-hk-up h-full transition-all duration-500" style="width: 50%;"></div>
@@ -172,14 +172,12 @@
     let vwapChartInstance = null;
     const watchListCodes = ['00700', '09988', '03690', '01810', '02800', '01211', '00981', '01024'];
 
-    // 格式化股票代碼至 5 位數
     function normalizeCode(code) {
       if (!code) return '';
       let clean = code.toString().trim().replace(/\D/g, '');
       return clean.padStart(5, '0');
     }
 
-    // 格式化數字顯示 (百萬/億)
     function formatAmount(val) {
       const num = parseFloat(val);
       if (isNaN(num)) return '--';
@@ -192,18 +190,21 @@
       lucide.createIcons();
       await loadStockDatabase();
       refreshRealtimeData();
-      // 每 5 秒自動刷新實時數據
       setInterval(refreshRealtimeData, 5000);
     };
 
     async function loadStockDatabase() {
       try {
         const res = await fetch('stocks.json');
-        if (res.ok) fullStockDatabase = await res.json();
-      } catch (e) {}
+        if (res.ok) {
+          fullStockDatabase = await res.json();
+          document.getElementById('db-count').innerText = `${Object.keys(fullStockDatabase).length} 隻`;
+        }
+      } catch (e) {
+        document.getElementById('db-count').innerText = "預設清單";
+      }
     }
 
-    // 切換 Tab
     function switchTab(tabNum) {
       if (tabNum === 1) {
         document.getElementById('tab1-content').classList.remove('hidden');
@@ -218,87 +219,97 @@
       }
     }
 
-    // 核心函數：連線騰訊實時 API 獲取真實 L1 數據
-    async function fetchRealtimeQuote(codesArray) {
-      const formattedCodes = codesArray.map(c => 'r_hk' + normalizeCode(c)).join(',');
-      const url = `https://qt.gtimg.cn/q=${formattedCodes}`;
+    // 💡 關鍵修復：採用 Script Tag 動態注入，100% 避開 CORS 跨域限制
+    function fetchRealtimeQuoteScript(codesArray) {
+      return new Promise((resolve) => {
+        const scriptId = 'realtime-script-loader';
+        const oldScript = document.getElementById(scriptId);
+        if (oldScript) oldScript.remove();
 
-      try {
-        const res = await fetch(url);
-        const text = await res.text();
-        const results = {};
+        const formattedCodes = codesArray.map(c => 'r_hk' + normalizeCode(c)).join(',');
+        const script = document.createElement('script');
+        script.id = scriptId;
+        script.src = `https://qt.gtimg.cn/q=${formattedCodes}&_t=${Date.now()}`;
 
-        const lines = text.split(';');
-        lines.forEach(line => {
-          if (line.includes('=')) {
-            const codeMatch = line.match(/v_r_hk(\d+)=/);
-            if (codeMatch) {
-              const code = codeMatch[1];
-              const rawData = line.split('"')[1];
-              if (rawData) {
-                const p = rawData.split('~');
-                // 解析騰訊 API 關鍵欄位
-                const price = parseFloat(p[3]) || 0;
-                const prevClose = parseFloat(p[4]) || 0;
-                const open = parseFloat(p[5]) || 0;
-                const turnover = parseFloat(p[37]) * 10000 || parseFloat(p[19]) * 10000 || 0; // 成交額
-                const outerVol = parseFloat(p[7]) || 0; // 外盤 (主動買盤量)
-                const innerVol = parseFloat(p[8]) || 0; // 內盤 (主動沽盤量)
-                const high = parseFloat(p[33]) || price;
-                const low = parseFloat(p[34]) || price;
+        script.onload = () => {
+          const results = {};
+          codesArray.forEach(rawCode => {
+            const code = normalizeCode(rawCode);
+            const varName = 'v_r_hk' + code;
+            const rawData = window[varName];
 
-                const change = price - prevClose;
-                const pct = prevClose > 0 ? (change / prevClose) * 100 : 0;
+            if (rawData) {
+              const p = rawData.split('~');
+              const price = parseFloat(p[3]) || 0;
+              const prevClose = parseFloat(p[4]) || 0;
+              const open = parseFloat(p[5]) || 0;
+              const outerVol = parseFloat(p[7]) || 0; // 外盤
+              const innerVol = parseFloat(p[8]) || 0; // 內盤
+              const high = parseFloat(p[33]) || price;
+              const low = parseFloat(p[34]) || price;
+              const turnover = parseFloat(p[37]) * 10000 || 0;
 
-                // 主動買/沽盤比率計算
-                const totalTradeVol = outerVol + innerVol;
-                let buyPct = 50;
-                if (totalTradeVol > 0) {
-                  buyPct = Math.round((outerVol / totalTradeVol) * 100);
-                }
+              const change = price - prevClose;
+              const pct = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
-                // 計算 VWAP 估算值 = 當天成交額 / 當天總股數
-                const totalVolShares = parseFloat(p[6]) * 100 || 1;
-                const vwap = turnover > 0 && totalVolShares > 0 ? (turnover / totalVolShares) : price;
-
-                results[code] = {
-                  code: code,
-                  name: p[1] || (fullStockDatabase[code] ? fullStockDatabase[code].name : `港股 (${code})`),
-                  price: price,
-                  prevClose: prevClose,
-                  open: open,
-                  high: high,
-                  low: low,
-                  change: change,
-                  pct: pct,
-                  turnover: turnover,
-                  buyPct: buyPct,
-                  sellPct: 100 - buyPct,
-                  outerVol: outerVol,
-                  innerVol: innerVol,
-                  vwap: vwap
-                };
+              const totalVol = outerVol + innerVol;
+              let buyPct = 50;
+              if (totalVol > 0) {
+                buyPct = Math.round((outerVol / totalVol) * 100);
               }
+
+              const totalShares = parseFloat(p[6]) * 100 || 1;
+              const vwap = turnover > 0 && totalShares > 0 ? (turnover / totalShares) : price;
+
+              results[code] = {
+                code: code,
+                name: p[1] || (fullStockDatabase[code] ? fullStockDatabase[code].name : `港股 (${code})`),
+                price: price,
+                prevClose: prevClose,
+                open: open,
+                high: high,
+                low: low,
+                change: change,
+                pct: pct,
+                turnover: turnover,
+                buyPct: buyPct,
+                sellPct: 100 - buyPct,
+                outerVol: outerVol,
+                innerVol: innerVol,
+                vwap: vwap
+              };
             }
-          }
-        });
-        return results;
-      } catch (e) {
-        console.error("獲取實時行情失敗:", e);
-        return null;
-      }
+          });
+          resolve(results);
+        };
+
+        script.onerror = () => {
+          console.error("Script 載入失敗");
+          resolve(null);
+        };
+
+        document.body.appendChild(script);
+      });
     }
 
-    // 刷新全網實時數據
     async function refreshRealtimeData() {
-      const data = await fetchRealtimeQuote(watchListCodes);
-      if (!data) return;
+      const data = await fetchRealtimeQuoteScript(watchListCodes);
+      
+      const badge = document.getElementById('db-status-badge');
+      const dot = document.getElementById('status-dot');
 
-      // 更新時間
+      if (!data || Object.keys(data).length === 0) {
+        badge.innerText = "連線重試中";
+        dot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
+        return;
+      }
+
+      badge.innerText = "實時連線中";
+      dot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
+
       const now = new Date();
       document.getElementById('last-update-time').innerText = now.toTimeString().split(' ')[0];
 
-      // 渲染階段一清單
       const listContainer = document.getElementById('stock-list');
       listContainer.innerHTML = '';
 
@@ -309,10 +320,10 @@
 
         let statusBadge = "👁️ 暗中吸籌";
         let statusBg = "bg-gray-800 text-indigo-300";
-        if (stock.buyPct >= 65) {
+        if (stock.buyPct >= 60) {
           statusBadge = "🔥 主力強拉";
           statusBg = "bg-red-900/60 text-red-300 border-red-500/40";
-        } else if (stock.buyPct <= 35) {
+        } else if (stock.buyPct <= 40) {
           statusBadge = "⚠️ 主力出貨";
           statusBg = "bg-green-900/60 text-green-300 border-green-500/40";
         }
@@ -335,7 +346,6 @@
               <div class="text-xs text-gray-400">成交額: <span class="text-white">${formatAmount(stock.turnover)}</span></div>
             </div>
 
-            <!-- 實時外盤(買) / 內盤(沽) 進度條 -->
             <div class="space-y-1 pt-1">
               <div class="flex justify-between text-[10px]">
                 <span class="hk-up">主動買盤 ${stock.buyPct}%</span>
@@ -353,22 +363,20 @@
       lucide.createIcons();
     }
 
-    // 搜尋與查看個股實時詳情
     async function selectStock(rawCode) {
       const code = normalizeCode(rawCode);
       if (!code) return;
 
-      const quotes = await fetchRealtimeQuote([code]);
+      const quotes = await fetchRealtimeQuoteScript([code]);
       const stock = quotes ? quotes[code] : null;
 
-      if (!stock) {
-        alert("無法獲取該股票實時行情，請檢查代碼是否正確");
+      if (!stock || stock.price === 0) {
+        alert("無法獲取該股票實時行情，請確認股票代號是否正確。");
         return;
       }
 
       const category = fullStockDatabase[code] ? fullStockDatabase[code].category : '港股證券';
 
-      // 更新階段二 UI
       document.getElementById('stock-name').innerText = stock.name;
       document.getElementById('stock-code').innerText = `HK.${code} · 實時行情`;
       document.getElementById('stock-category-badge').innerText = category;
@@ -388,22 +396,17 @@
       document.getElementById('high-price').innerText = `$${stock.high.toFixed(2)}`;
       document.getElementById('low-price').innerText = `$${stock.low.toFixed(2)}`;
 
-      // 實時外盤/內盤進度條
       document.getElementById('buy-pct').innerText = `${stock.buyPct}%`;
       document.getElementById('sell-pct').innerText = `${stock.sellPct}%`;
-      document.getElementById('buy-val').innerText = formatAmount(stock.outerVol * stock.price);
-      document.getElementById('sell-val').innerText = formatAmount(stock.innerVol * stock.price);
       document.getElementById('buy-bar').style.width = `${stock.buyPct}%`;
       document.getElementById('sell-bar').style.width = `${stock.sellPct}%`;
 
-      // 計算 AI 動能得分 (根據主動買盤比率與漲跌幅)
       const aiScore = Math.min(99, Math.max(30, Math.round(stock.buyPct * 0.7 + (stock.pct + 5) * 3)));
       document.getElementById('ai-score').innerText = `${aiScore} 分`;
       document.getElementById('score-capital').innerText = `${stock.buyPct} 分`;
       document.getElementById('score-tech').innerText = `${Math.min(95, aiScore + 2)} 分`;
       document.getElementById('score-momentum').innerText = `${Math.min(98, aiScore - 1)} 分`;
 
-      // 繪製 VWAP 估算對比線
       const p = stock.price;
       const v = stock.vwap > 0 ? stock.vwap : p * 0.998;
       initVWAPChart(
