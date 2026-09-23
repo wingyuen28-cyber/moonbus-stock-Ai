@@ -1,0 +1,10 @@
+{
+  "name": "hk-stock-ai-app",
+  "version": "1.0.0",
+  "description": "港股 AI 實時異動與主力資金分析 App",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "dependencies": {}
+}
