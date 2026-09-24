@@ -27,7 +27,7 @@
     <div class="flex justify-between items-center max-w-md mx-auto">
       <div class="flex items-center space-x-2">
         <i data-lucide="activity" class="text-indigo-400 w-5 h-5"></i>
-        <h1 class="font-bold text-lg tracking-wide text-white">港股 AI 異動大師 <span class="text-xs px-2 py-0.5 rounded bg-indigo-900 text-indigo-300">L1 實時版</span></h1>
+        <h1 class="font-bold text-lg tracking-wide text-white">月巴 AI 異動大師 <span class="text-xs px-2 py-0.5 rounded bg-indigo-900 text-indigo-300">L1 實時版</span></h1>
       </div>
       <div class="flex items-center space-x-1 text-xs text-gray-400">
         <span id="status-dot" class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
@@ -37,9 +37,9 @@
 
     <!-- 狀態簡報 -->
     <div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-gray-800 text-xs">
-      <div>股票資料庫: <span id="db-count" class="text-gray-300">載入中</span></div>
-      <div>數據源: <span class="text-indigo-400 font-semibold">港交所 L1 實時 API</span></div>
-      <div>更新時間: <span id="last-update-time" class="text-gray-300">--:--:--</span></div>
+      <div>自訂監測: <span id="watchlist-count" class="text-indigo-400 font-bold">0/10</span></div>
+      <div>刷新頻率: <span class="text-green-400 font-semibold">8秒/次</span></div>
+      <div>最後更新: <span id="last-update-time" class="text-gray-300">--:--:--</span></div>
     </div>
   </header>
 
@@ -47,14 +47,27 @@
 
     <!-- 頁面 Tab 切換區 -->
     <div class="flex rounded-lg bg-gray-900 p-1 border border-gray-800">
-      <button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition">功能一：月巴 AI 實時掃描</button>
+      <button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition">功能一：自訂異動監測網</button>
       <button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2 text-sm font-medium rounded-md text-gray-400 transition">功能二：個股深度分析</button>
     </div>
 
-    <!-- ==================== 功能一：全網 AI 實時掃描 ==================== -->
+    <!-- ==================== 功能一：用戶自訂監測網 (上限10隻) ==================== -->
     <section id="tab1-content" class="space-y-3">
-      <div class="flex justify-between items-center text-xs text-gray-400 px-1">
-        <span>每 5 秒自動刷實時動能與主力籌碼數據</span>
+      
+      <!-- 新增自訂監測股票欄位 -->
+      <div class="card-bg p-3 rounded-xl shadow-lg space-y-2">
+        <label class="block text-xs font-medium text-gray-300">新增自訂監測股份 (最多可儲存 10 隻)：</label>
+        <div class="flex space-x-2">
+          <input type="text" id="add-watchlist-input" placeholder="輸入代號，如 2342, 700" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+          <button onclick="handleAddWatchlist()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-1">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>加入監測</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center text-xs text-gray-400 px-1 pt-1">
+        <span>每 8 秒自動更新主力動能與量比數據</span>
         <button onclick="refreshRealtimeData()" class="text-indigo-400 hover:underline flex items-center space-x-1">
           <i data-lucide="refresh-cw" class="w-3 h-3"></i>
           <span>手動刷新</span>
@@ -72,7 +85,7 @@
       
       <!-- 手動搜尋欄 -->
       <div class="card-bg p-3 rounded-xl shadow-lg">
-        <label class="block text-xs font-medium text-gray-400 mb-1">輸入任意港股代號 (自動連線實時 API)：</label>
+        <label class="block text-xs font-medium text-gray-400 mb-1">輸入任意港股代號 (即時數據分析)：</label>
         <div class="flex space-x-2">
           <input type="text" id="search-input" placeholder="例如: 700, 9988, 2342" value="00700" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
           <button onclick="handleSearch()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-1">
@@ -132,11 +145,11 @@
           </div>
         </div>
 
-        <!-- 分時圖表 + VWAP (30分鐘刻度) -->
+        <!-- 累積走勢圖表 + VWAP (30分鐘累積繪製) -->
         <div class="pt-2">
           <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
-            <span>實時現價 (白線) vs VWAP 機構成本線 (黃線)</span>
-            <span class="text-indigo-400 font-medium">30 分鐘分時圖</span>
+            <span>實時現價 (白線) vs VWAP 成本線 (黃線)</span>
+            <span class="text-indigo-400 font-medium">30 分鐘累積軌跡</span>
           </div>
           <div class="h-44 w-full">
             <canvas id="vwapChart"></canvas>
@@ -144,28 +157,34 @@
         </div>
       </div>
 
-      <!-- AI 0-100 綜合評分 -->
+      <!-- AI 實時值博分數 (Risk-Reward Score) -->
       <div class="card-bg p-4 rounded-xl shadow-lg space-y-3">
         <div class="flex justify-between items-center border-b border-gray-800 pb-2">
-          <span class="font-bold text-sm text-white">AI 實時戰術評分</span>
+          <div>
+            <span class="font-bold text-sm text-white block">AI 實時值博分數</span>
+            <span class="text-[10px] text-gray-400">基於資金流、量比與成本優勢綜合評估</span>
+          </div>
           <div class="text-right">
-            <span class="text-xs text-gray-400">綜合打分：</span>
-            <span id="ai-score" class="text-xl font-black text-indigo-400">-- 分</span>
+            <span id="ai-score" class="text-2xl font-black text-indigo-400">-- 分</span>
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-2 text-center text-xs">
+        <div class="text-xs p-2.5 rounded-lg border bg-indigo-950/40 border-indigo-800/60 font-medium text-indigo-200" id="risk-reward-advice">
+          計算值博率中...
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 text-center text-xs pt-1">
           <div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
-            <span class="text-gray-400 block">資金面</span>
+            <span class="text-gray-400 block">資金面 (40%)</span>
             <span id="score-capital" class="font-bold text-white">-- 分</span>
           </div>
           <div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
-            <span class="text-gray-400 block">技術面</span>
-            <span id="score-tech" class="font-bold text-white">-- 分</span>
+            <span class="text-gray-400 block">動能面 (30%)</span>
+            <span id="score-momentum" class="font-bold text-white">-- 分</span>
           </div>
           <div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
-            <span class="text-gray-400 block">動能面</span>
-            <span id="score-momentum" class="font-bold text-white">-- 分</span>
+            <span class="text-gray-400 block">成本優勢 (30%)</span>
+            <span id="score-tech" class="font-bold text-white">-- 分</span>
           </div>
         </div>
       </div>
@@ -178,11 +197,32 @@
     let fullStockDatabase = {};
     let vwapChartInstance = null;
     let currentSelectedCode = '00700';
-    let stockHistoryStore = {}; // 快取各股票 30 分鐘歷史數據
 
-    // 港股 30 分鐘標準交易時間點位 (13 個節點)
+    // 💡 本地快取：記錄各個股票當天真實累積的 30 分鐘分時數據
+    let stockAccumulatedStore = {};
+
+    // 港股 30 分鐘標準時間軸 (13 個點位)
     const time30MinLabels = ['09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00'];
-    const watchListCodes = ['00700', '09988', '03690', '01810', '02800', '01211', '00981', '01024', '02342', '02015'];
+    
+    // 預設與用戶自訂監測名單 (持久化於 localStorage)
+    const DEFAULT_WATCHLIST = ['00700', '09988', '03690', '01810', '02800', '01211', '00981', '01024', '02342', '02015'];
+    
+    function getStoredWatchlist() {
+      const saved = localStorage.getItem('hk_user_watchlist_v1');
+      if (saved) {
+        try {
+          const list = JSON.parse(saved);
+          if (Array.isArray(list) && list.length > 0) return list;
+        } catch(e) {}
+      }
+      return DEFAULT_WATCHLIST;
+    }
+
+    function saveStoredWatchlist(list) {
+      localStorage.setItem('hk_user_watchlist_v1', JSON.stringify(list));
+    }
+
+    let watchListCodes = getStoredWatchlist();
 
     function normalizeCode(code) {
       if (!code) return '';
@@ -198,7 +238,7 @@
       return num.toFixed(0);
     }
 
-    // AI 精準評級邏輯
+    // 💡 AI 主力評級與描述
     function evaluateAIRating(buyPct, changePct, volumeRatio) {
       const isHighVol = volumeRatio >= 1.8;
 
@@ -251,23 +291,47 @@
       }
     }
 
+    // 💡 升級版：計算「月巴AI 實時值博分數 (Risk-Reward Score)」
+    function calculateRiskRewardScore(stock) {
+      // 1. 資金面得分 (40%)
+      const capScore = stock.buyPct;
+
+      // 2. 動能/量比得分 (30%)
+      const volScore = Math.min(100, Math.round(stock.volumeRatio * 35));
+
+      // 3. 成本優勢得分 (30%): 價格相對於 VWAP 與當日漲跌位置
+      const vwapDiffPct = stock.vwap > 0 ? ((stock.price - stock.vwap) / stock.vwap) * 100 : 0;
+      let techScore = 50 + (stock.pct * 2.5) + (vwapDiffPct * 4);
+      techScore = Math.min(100, Math.max(10, Math.round(techScore)));
+
+      let totalScore = Math.round((capScore * 0.4) + (volScore * 0.3) + (techScore * 0.3));
+      totalScore = Math.min(99, Math.max(25, totalScore));
+
+      let advice = "";
+      if (totalScore >= 80) advice = "🔥 極高值博率：主力資金強勢入場，短線量價齊揚，入場勝率與盈虧比優異！";
+      else if (totalScore >= 65) advice = "🟢 中高值博率：籌碼面呈淨流入，具備多頭動能，可考慮逢回踩分批關注。";
+      else if (totalScore >= 45) advice = "⚖️ 中性值博率：多空雙方力量拉鋸，無明顯趨勢，建議耐心觀望待方向確立。";
+      else advice = "⚠️ 低值博率 / 風險偏高：主動拋盤顯著且動能不足，注意下行風險，不宜盲目抄底。";
+
+      return { totalScore, capScore, volScore, techScore, advice };
+    }
+
     window.onload = async () => {
       lucide.createIcons();
       await loadStockDatabase();
       refreshRealtimeData();
-      setInterval(refreshRealtimeData, 5000); // 5秒自動更新
+      setInterval(refreshRealtimeData, 8000); // ⏱️ 設定為 8 秒刷新一次，最平穩防封鎖
     };
 
     async function loadStockDatabase() {
       try {
         const res = await fetch('stocks.json');
-        if (res.ok) {
-          fullStockDatabase = await res.json();
-          document.getElementById('db-count').innerText = `${Object.keys(fullStockDatabase).length} 隻`;
-        }
-      } catch (e) {
-        document.getElementById('db-count').innerText = "預設清單";
-      }
+        if (res.ok) fullStockDatabase = await res.json();
+      } catch (e) {}
+    }
+
+    function updateWatchlistCounter() {
+      document.getElementById('watchlist-count').innerText = `${watchListCodes.length}/10`;
     }
 
     function switchTab(tabNum) {
@@ -284,7 +348,30 @@
       }
     }
 
-    // 💡 實時 API 連線
+    // 💡 自訂監測：新增股票 (最多10隻)
+    function handleAddWatchlist() {
+      const input = document.getElementById('add-watchlist-input');
+      const code = normalizeCode(input.value);
+      if (!code) { alert("請輸入正確的港股代號"); return; }
+      if (watchListCodes.includes(code)) { alert("該股份已在監測名單中"); return; }
+      if (watchListCodes.length >= 10) { alert("自訂監測名單最多只可儲存 10 隻股份，請先刪除不常用的股份。"); return; }
+
+      watchListCodes.push(code);
+      saveStoredWatchlist(watchListCodes);
+      input.value = '';
+      refreshRealtimeData();
+    }
+
+    // 💡 自訂監測：刪除股票
+    function handleRemoveWatchlist(event, code) {
+      event.stopPropagation(); // 阻止觸發進入詳情
+      if (watchListCodes.length <= 1) { alert("監測名單最少需保留 1 隻股份"); return; }
+      watchListCodes = watchListCodes.filter(c => c !== code);
+      saveStoredWatchlist(watchListCodes);
+      refreshRealtimeData();
+    }
+
+    // 💡 連線騰訊財經 API (單次打包請求 10 隻股票，極省流量)
     function fetchRealtimeQuoteScript(codesArray) {
       return new Promise((resolve) => {
         const scriptId = 'realtime-script-loader';
@@ -365,9 +452,12 @@
       });
     }
 
-    // 💡 實時刷新總入口 (含階段二圖表動態同步)
+    // 💡 實時刷新總進入點
     async function refreshRealtimeData() {
-      const data = await fetchRealtimeQuoteScript(watchListCodes.concat([currentSelectedCode]));
+      updateWatchlistCounter();
+      const fetchList = Array.from(new Set(watchListCodes.concat([currentSelectedCode])));
+      const data = await fetchRealtimeQuoteScript(fetchList);
+
       const badge = document.getElementById('db-status-badge');
       const dot = document.getElementById('status-dot');
 
@@ -383,7 +473,12 @@
       const now = new Date();
       document.getElementById('last-update-time').innerText = now.toTimeString().split(' ')[0];
 
-      // 1. 渲染階段一清單
+      // 1. 累積儲存快取點位 (做為真實走勢軌跡)
+      Object.values(data).forEach(stock => {
+        appendRealtimeSnapshot(stock);
+      });
+
+      // 2. 渲染功能一監測清單
       const listContainer = document.getElementById('stock-list');
       listContainer.innerHTML = '';
 
@@ -397,13 +492,16 @@
         const rating = evaluateAIRating(stock.buyPct, stock.pct, stock.volumeRatio);
 
         const cardHtml = `
-          <div onclick="selectStock('${stock.code}')" class="card-bg p-3.5 rounded-xl shadow-lg space-y-2 cursor-pointer hover:border-indigo-500 transition">
+          <div onclick="selectStock('${stock.code}')" class="card-bg p-3.5 rounded-xl shadow-lg space-y-2 cursor-pointer hover:border-indigo-500 transition relative">
             <div class="flex justify-between items-center">
-              <div>
+              <div class="flex items-center space-x-2">
                 <span class="font-bold text-white text-base">${stock.name}</span>
-                <span class="text-xs text-gray-400 ml-1.5">HK.${stock.code}</span>
+                <span class="text-xs text-gray-400">HK.${stock.code}</span>
               </div>
-              <span class="text-xs px-2 py-0.5 rounded font-semibold border ${rating.badgeBg}">${rating.title}</span>
+              <div class="flex items-center space-x-2">
+                <span class="text-xs px-2 py-0.5 rounded font-semibold border ${rating.badgeBg}">${rating.title}</span>
+                <button onclick="handleRemoveWatchlist(event, '${stock.code}')" class="text-gray-500 hover:text-red-400 p-1 text-xs">✕</button>
+              </div>
             </div>
             
             <div class="flex justify-between items-baseline">
@@ -431,13 +529,12 @@
       });
       lucide.createIcons();
 
-      // 2. 如果使用者正在階段二，同步實時更新圖表與詳情！
+      // 3. 同步更新功能二詳情
       if (currentSelectedCode && data[currentSelectedCode]) {
         updateDetailCard(data[currentSelectedCode]);
       }
     }
 
-    // 💡 點擊或搜尋個股
     async function selectStock(rawCode) {
       const code = normalizeCode(rawCode);
       if (!code) return;
@@ -445,6 +542,7 @@
 
       const quotes = await fetchRealtimeQuoteScript([code]);
       if (quotes && quotes[code] && quotes[code].price > 0) {
+        appendRealtimeSnapshot(quotes[code]);
         updateDetailCard(quotes[code]);
         switchTab(2);
       } else {
@@ -452,7 +550,49 @@
       }
     }
 
-    // 💡 更新階段二詳情卡片與 30 分鐘動態圖表
+    // 💡 核心算法：累積追加實時點位 (真實記錄當日分時走勢軌跡)
+    function appendRealtimeSnapshot(stock) {
+      const code = stock.code;
+      if (!stockAccumulatedStore[code]) {
+        stockAccumulatedStore[code] = {
+          prices: new Array(13).fill(null),
+          vwaps: new Array(13).fill(null)
+        };
+      }
+
+      // 判斷當前 30 分鐘時間格位
+      const now = new Date();
+      const timeNum = now.getHours() * 100 + now.getMinutes();
+
+      let slotIdx = 12;
+      if (timeNum <= 930) slotIdx = 0;
+      else if (timeNum <= 1000) slotIdx = 1;
+      else if (timeNum <= 1030) slotIdx = 2;
+      else if (timeNum <= 1100) slotIdx = 3;
+      else if (timeNum <= 1130) slotIdx = 4;
+      else if (timeNum <= 1200) slotIdx = 5;
+      else if (timeNum <= 1300) slotIdx = 6;
+      else if (timeNum <= 1330) slotIdx = 7;
+      else if (timeNum <= 1400) slotIdx = 8;
+      else if (timeNum <= 1430) slotIdx = 9;
+      else if (timeNum <= 1500) slotIdx = 10;
+      else if (timeNum <= 1530) slotIdx = 11;
+      else slotIdx = 12;
+
+      // 寫入當前實時快照
+      stockAccumulatedStore[code].prices[slotIdx] = stock.price;
+      stockAccumulatedStore[code].vwaps[slotIdx] = stock.vwap > 0 ? stock.vwap : stock.price;
+
+      // 前方空白格位自動連線補充 (確保線條連續)
+      for (let i = 0; i < slotIdx; i++) {
+        if (stockAccumulatedStore[code].prices[i] === null) {
+          stockAccumulatedStore[code].prices[i] = stock.open || stock.price;
+          stockAccumulatedStore[code].vwaps[i] = stock.open || stock.price;
+        }
+      }
+    }
+
+    // 💡 更新功能二詳情
     function updateDetailCard(stock) {
       const category = fullStockDatabase[stock.code] ? fullStockDatabase[stock.code].category : '港股證券';
 
@@ -481,99 +621,44 @@
       document.getElementById('buy-bar').style.width = `${stock.buyPct}%`;
       document.getElementById('sell-bar').style.width = `${stock.sellPct}%`;
 
-      // AI 評級
+      // AI 主力評級
       const rating = evaluateAIRating(stock.buyPct, stock.pct, stock.volumeRatio);
       const ratingBadge = document.getElementById('ai-status-badge');
       ratingBadge.innerText = rating.title;
       ratingBadge.className = `px-2.5 py-1 rounded text-xs font-bold border ${rating.badgeBg}`;
       document.getElementById('ai-rating-desc').innerText = rating.desc;
 
-      // AI 綜合評分
-      const aiScore = Math.min(99, Math.max(30, Math.round(stock.buyPct * 0.6 + (stock.pct + 5) * 2 + stock.volumeRatio * 10)));
-      document.getElementById('ai-score').innerText = `${aiScore} 分`;
-      document.getElementById('score-capital').innerText = `${stock.buyPct} 分`;
-      document.getElementById('score-tech').innerText = `${Math.min(95, aiScore + 2)} 分`;
-      document.getElementById('score-momentum').innerText = `${Math.min(98, aiScore - 1)} 分`;
+      // 月巴AI 實時值博分數
+      const rr = calculateRiskRewardScore(stock);
+      document.getElementById('ai-score').innerText = `${rr.totalScore} 分`;
+      document.getElementById('risk-reward-advice').innerText = rr.advice;
+      document.getElementById('score-capital').innerText = `${rr.capScore} 分`;
+      document.getElementById('score-momentum').innerText = `${rr.volScore} 分`;
+      document.getElementById('score-tech').innerText = `${rr.techScore} 分`;
 
-      // 💡 生成並更新 30 分鐘分時圖表數據點
-      const series = build30MinSeries(stock);
-      renderVWAPChart(series.labels, series.prices, series.vwaps);
-    }
-
-    // 💡 構建 30 分鐘分時動態數據序列
-    function build30MinSeries(stock) {
-      const code = stock.code;
-      const open = stock.open || stock.price;
-      const high = stock.high || stock.price;
-      const low = stock.low || stock.price;
-      const price = stock.price;
-      const vwap = stock.vwap > 0 ? stock.vwap : price * 0.998;
-
-      // 計算當前時間點應落在 13 個 30 分鐘時段中的哪一格
-      const now = new Date();
-      const timeNum = now.getHours() * 100 + now.getMinutes();
-
-      let activeIndex = 12; // 預設收市
-      if (timeNum <= 930) activeIndex = 0;
-      else if (timeNum <= 1000) activeIndex = 1;
-      else if (timeNum <= 1030) activeIndex = 2;
-      else if (timeNum <= 1100) activeIndex = 3;
-      else if (timeNum <= 1130) activeIndex = 4;
-      else if (timeNum <= 1200) activeIndex = 5;
-      else if (timeNum <= 1300) activeIndex = 6;
-      else if (timeNum <= 1330) activeIndex = 7;
-      else if (timeNum <= 1400) activeIndex = 8;
-      else if (timeNum <= 1430) activeIndex = 9;
-      else if (timeNum <= 1500) activeIndex = 10;
-      else if (timeNum <= 1530) activeIndex = 11;
-      else activeIndex = 12;
-
-      // 生成擬合 30 分鐘曲線 (結合今開、高點、低點與現價)
-      const prices = [];
-      const vwaps = [];
-
-      for (let i = 0; i < 13; i++) {
-        if (i === 0) {
-          prices.push(open);
-          vwaps.push(open);
-        } else if (i === activeIndex) {
-          // 當前時間節點：帶入實時動態最新價與 VWAP
-          prices.push(price);
-          vwaps.push(vwap);
-        } else if (i < activeIndex) {
-          // 過往節點：根據高低點波動進行流暢擬合
-          const ratio = i / activeIndex;
-          const wave = (i % 2 === 0) ? (high - open) * 0.25 : -(open - low) * 0.25;
-          const interpolatedP = open + (price - open) * ratio + wave;
-          prices.push(parseFloat(interpolatedP.toFixed(2)));
-          vwaps.push(parseFloat((interpolatedP * 0.999).toFixed(2)));
-        } else {
-          // 未來時段預留為 null，讓圖表隨時間推進而成長
-          prices.push(null);
-          vwaps.push(null);
-        }
+      // 渲染真實累積走勢圖
+      const store = stockAccumulatedStore[stock.code];
+      if (store) {
+        renderVWAPChart(time30MinLabels, store.prices, store.vwaps);
       }
-
-      return { labels: time30MinLabels, prices: prices, vwaps: vwaps };
     }
 
-    // 💡 繪製與動態更新 30 分鐘 VWAP 圖表 (動態 Y 軸 Auto-Fit)
+    // 💡 繪製累積 30 分鐘走勢圖 (Auto-Fit 緊密縮放 Y 軸)
     function renderVWAPChart(labels, priceData, vwapData) {
       const ctx = document.getElementById('vwapChart').getContext('2d');
 
-      // 提取非 null 數值計算精密 Y 軸邊界
       const validPrices = priceData.filter(v => v !== null && !isNaN(v));
       const validVwaps = vwapData.filter(v => v !== null && !isNaN(v));
       const allVals = [...validPrices, ...validVwaps];
 
-      let minVal = Math.min(...allVals);
-      let maxVal = Math.max(...allVals);
+      let minVal = allVals.length > 0 ? Math.min(...allVals) : 1;
+      let maxVal = allVals.length > 0 ? Math.max(...allVals) : 10;
 
       if (minVal === maxVal) {
         minVal = minVal * 0.99;
         maxVal = maxVal * 1.01;
       } else {
-        const margin = (maxVal - minVal) * 0.2;
+        const margin = (maxVal - minVal) * 0.15;
         minVal -= margin;
         maxVal += margin;
       }
@@ -593,7 +678,7 @@
               pointRadius: 3,
               pointBackgroundColor: '#FFFFFF',
               spanGaps: true,
-              tension: 0.25
+              tension: 0.2
             },
             {
               label: 'VWAP 成本線',
@@ -603,14 +688,14 @@
               borderDash: [4, 4],
               pointRadius: 0,
               spanGaps: true,
-              tension: 0.2
+              tension: 0.15
             }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: { duration: 300 }, // 平滑跳動動畫
+          animation: { duration: 250 },
           plugins: { legend: { display: false } },
           scales: {
             x: {
