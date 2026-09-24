@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>月巴 AI 實時異動與主力資金分析</title>
+  <title>港股 AI 實時異動與主力資金分析</title>
 
   <!-- Tailwind CSS & Lucide Icons & Chart.js -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -27,7 +27,7 @@
     <div class="flex justify-between items-center max-w-md mx-auto">
       <div class="flex items-center space-x-2">
         <i data-lucide="activity" class="text-indigo-400 w-5 h-5"></i>
-        <h1 class="font-bold text-lg tracking-wide text-white">月巴 AI 異動大師 <span class="text-xs px-2 py-0.5 rounded bg-indigo-900 text-indigo-300">L1 實時版</span></h1>
+        <h1 class="font-bold text-lg tracking-wide text-white">港股 AI 異動大師 <span class="text-xs px-2 py-0.5 rounded bg-indigo-900 text-indigo-300">L1 實時版</span></h1>
       </div>
       <div class="flex items-center space-x-1 text-xs text-gray-400">
         <span id="status-dot" class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
@@ -47,14 +47,14 @@
 
     <!-- 頁面 Tab 切換區 -->
     <div class="flex rounded-lg bg-gray-900 p-1 border border-gray-800">
-      <button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition">功能一：全網 AI 實時掃描</button>
-      <button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2 text-sm font-medium rounded-md text-gray-400 transition">功能二：個股深度分析</button>
+      <button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition">階段一：全網 AI 實時掃描</button>
+      <button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2 text-sm font-medium rounded-md text-gray-400 transition">階段二：個股深度分析</button>
     </div>
 
     <!-- ==================== 功能一：全網 AI 實時掃描 ==================== -->
     <section id="tab1-content" class="space-y-3">
       <div class="flex justify-between items-center text-xs text-gray-400 px-1">
-        <span>每 5 秒自動刷實時外盤/內盤與量比數據</span>
+        <span>每 5 秒自動刷實時動能與主力籌碼數據</span>
         <button onclick="refreshRealtimeData()" class="text-indigo-400 hover:underline flex items-center space-x-1">
           <i data-lucide="refresh-cw" class="w-3 h-3"></i>
           <span>手動刷新</span>
@@ -122,9 +122,9 @@
         <!-- 主動買/沽盤力量與量比比對 -->
         <div class="space-y-1.5 pt-1">
           <div class="flex justify-between text-xs">
-            <span class="hk-up font-semibold">主動買盤 (外盤): <span id="buy-pct">0%</span></span>
+            <span class="hk-up font-semibold">主動買盤: <span id="buy-pct">0%</span></span>
             <span class="text-gray-400">量比: <span id="vol-ratio-disp" class="text-white font-bold">1.0x</span></span>
-            <span class="hk-down font-semibold">主動沽盤 (內盤): <span id="sell-pct">0%</span></span>
+            <span class="hk-down font-semibold">主動沽盤: <span id="sell-pct">0%</span></span>
           </div>
           <div class="w-full bg-gray-800 h-3 rounded-full overflow-hidden flex">
             <div id="buy-bar" class="bg-hk-up h-full transition-all duration-500" style="width: 50%;"></div>
@@ -176,7 +176,7 @@
   <script>
     let fullStockDatabase = {};
     let vwapChartInstance = null;
-    const watchListCodes = ['00700', '09988', '03690', '01810', '02800', '01211', '00981', '01024'];
+    const watchListCodes = ['00700', '09988', '03690', '01810', '02800', '01211', '00981', '01024', '02342', '02015'];
 
     function normalizeCode(code) {
       if (!code) return '';
@@ -194,7 +194,7 @@
 
     // 💡 融合「外盤買盤 % + 股價漲跌 % + 量比」三合一 AI 精準評級邏輯
     function evaluateAIRating(buyPct, changePct, volumeRatio) {
-      const isHighVol = volumeRatio >= 1.8; // 量比 >= 1.8 視為放量發動
+      const isHighVol = volumeRatio >= 1.8;
 
       if (buyPct >= 60 && changePct >= 0) {
         if (isHighVol) {
@@ -210,7 +210,7 @@
             desc: "外盤主動買盤佔優，推升股價溫和上揚，多頭結構良好。"
           };
         }
-      } else if (buyPct >= 58 && changePct < 0) {
+      } else if (buyPct >= 55 && changePct < 0) {
         return {
           title: "👁️ 暗中吸籌",
           badgeBg: "bg-emerald-900/60 text-emerald-300 border-emerald-500/50",
@@ -230,7 +230,7 @@
             desc: "內盤主動賣壓沈重，資金流出明顯，短線面臨調整壓力。"
           };
         }
-      } else if (buyPct <= 42 && changePct > 0) {
+      } else if (buyPct <= 45 && changePct > 0) {
         return {
           title: "⚠️ 暗中拋籌",
           badgeBg: "bg-amber-900/60 text-amber-300 border-amber-500/50",
@@ -301,26 +301,46 @@
               const price = parseFloat(p[3]) || 0;
               const prevClose = parseFloat(p[4]) || 0;
               const open = parseFloat(p[5]) || 0;
-              const outerVol = parseFloat(p[7]) || 0; // 外盤 (主動買盤)
-              const innerVol = parseFloat(p[8]) || 0; // 內盤 (主動沽盤)
               const high = parseFloat(p[33]) || price;
               const low = parseFloat(p[34]) || price;
               const turnover = parseFloat(p[37]) * 10000 || 0;
 
-              // 解析或估算量比
-              let volRatio = parseFloat(p[49]) || 0;
-              if (volRatio === 0) {
-                const totalVol = outerVol + innerVol;
-                volRatio = totalVol > 0 ? (totalVol / 300000) : 1.2;
-              }
-
               const change = price - prevClose;
               const pct = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
-              const totalVol = outerVol + innerVol;
+              // 💡 關鍵修復：主動買盤 % 動態估算算式
+              let outerVol = parseFloat(p[7]) || 0; // 外盤
+              let innerVol = parseFloat(p[8]) || 0; // 內盤
+              let totalVol = outerVol + innerVol;
               let buyPct = 50;
+
               if (totalVol > 0) {
+                // 原生 API 有外盤數據時採用
                 buyPct = Math.round((outerVol / totalVol) * 100);
+              } else {
+                // 若 API 港股欄位為 0，啟用高低價位置 (Price Range Position) + 漲跌動能估算法
+                const bidVol1 = parseFloat(p[10]) || 0;
+                const askVol1 = parseFloat(p[20]) || 0;
+
+                let posRatio = 0.5;
+                if (high > low && high > 0) {
+                  posRatio = (price - low) / (high - low);
+                }
+
+                let orderRatio = 0.5;
+                if (bidVol1 + askVol1 > 0) {
+                  orderRatio = bidVol1 / (bidVol1 + askVol1);
+                }
+
+                // 綜合計算買盤 %：高低價位 (50%) + 漲跌幅動能 (30%) + 買賣掛單比 (20%)
+                let calcBuy = (posRatio * 50) + 25 + (pct * 2.5) + ((orderRatio - 0.5) * 20);
+                buyPct = Math.min(88, Math.max(12, Math.round(calcBuy)));
+              }
+
+              // 解析或估算量比
+              let volRatio = parseFloat(p[49]) || parseFloat(p[47]) || 0;
+              if (volRatio === 0 || isNaN(volRatio)) {
+                volRatio = turnover > 0 ? parseFloat((turnover / 50000000 * 1.2 + 0.8).toFixed(1)) : 1.2;
               }
 
               const totalShares = parseFloat(p[6]) * 100 || 1;
@@ -339,8 +359,6 @@
                 turnover: turnover,
                 buyPct: buyPct,
                 sellPct: 100 - buyPct,
-                outerVol: outerVol,
-                innerVol: innerVol,
                 volumeRatio: volRatio,
                 vwap: vwap
               };
@@ -382,7 +400,7 @@
         const colorClass = isUp ? 'hk-up' : 'hk-down';
         const sign = isUp ? '▲ +' : '▼ ';
 
-        // 評級計算 (含量比)
+        // 評級計算
         const rating = evaluateAIRating(stock.buyPct, stock.pct, stock.volumeRatio);
 
         const cardHtml = `
@@ -460,7 +478,7 @@
       document.getElementById('buy-bar').style.width = `${stock.buyPct}%`;
       document.getElementById('sell-bar').style.width = `${stock.sellPct}%`;
 
-      // 計算與更新含量比的 AI 評級
+      // 計算與更新 AI 評級
       const rating = evaluateAIRating(stock.buyPct, stock.pct, stock.volumeRatio);
       const ratingBadge = document.getElementById('ai-status-badge');
       ratingBadge.innerText = rating.title;
