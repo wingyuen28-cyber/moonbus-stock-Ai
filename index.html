@@ -38,7 +38,7 @@
     <!-- 狀態簡報 -->
     <div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-gray-800 text-xs">
       <div>自訂監測: <span id="watchlist-count" class="text-indigo-400 font-bold">0/10</span></div>
-      <div>刷新頻率: <span class="text-green-400 font-semibold">3分鐘/次</span></div>
+      <div>刷新頻率: <span class="text-green-400 font-semibold">報價8秒 / 圖表3分</span></div>
       <div>最後更新: <span id="last-update-time" class="text-gray-300">--:--:--</span></div>
     </div>
   </header>
@@ -67,7 +67,7 @@
       </div>
 
       <div class="flex justify-between items-center text-xs text-gray-400 px-1 pt-1">
-        <span>每 3 分鐘自動更新主力動能與量比數據</span>
+        <span>每 8 秒自動更新實時報價與主力籌碼數據</span>
         <button onclick="refreshRealtimeData()" class="text-indigo-400 hover:underline flex items-center space-x-1">
           <i data-lucide="refresh-cw" class="w-3 h-3"></i>
           <span>手動刷新</span>
@@ -145,29 +145,29 @@
           </div>
         </div>
 
-        <!-- 雙圖表拆分區域 (3分鐘點位 / 0.005 單位) -->
+        <!-- 雙圖表拆分區域 (3分鐘節點 / 8秒跟貼現價) -->
         <div class="space-y-4 pt-2">
           
-          <!-- 圖表一：實時現價走勢圖 (獨立 Canvas) -->
+          <!-- 圖表一：實時現價走勢圖 -->
           <div>
             <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
               <span class="text-white font-semibold flex items-center space-x-1.5">
                 <span class="w-2 h-2 rounded-full bg-white inline-block"></span>
-                <span>圖表一：實時股價分時走勢 (0.005 刻度)</span>
+                <span>圖表一：實時股價走勢 (0.005 單位)</span>
               </span>
-              <span class="text-indigo-400 font-medium">3分鐘脈衝相間</span>
+              <span class="text-indigo-400 font-medium">3分鐘刻度</span>
             </div>
             <div class="h-36 w-full">
               <canvas id="priceChart"></canvas>
             </div>
           </div>
 
-          <!-- 圖表二：VWAP 機構成本線走勢圖 (獨立 Canvas) -->
+          <!-- 圖表二：VWAP 機構成本線走勢圖 -->
           <div class="pt-3 border-t border-gray-800">
             <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
               <span class="text-amber-400 font-semibold flex items-center space-x-1.5">
                 <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
-                <span>圖表二：VWAP 機構成本線 (0.005 刻度)</span>
+                <span>圖表二：VWAP 機構成本線 (0.005 單位)</span>
               </span>
               <span class="text-amber-400 font-medium">機構平均成本</span>
             </div>
@@ -249,7 +249,6 @@
       return clean.padStart(5, '0');
     }
 
-    // 💡 精準顯示小數點格式（預設保留 3 位小數以配合 0.005 變動單位）
     function formatPriceNum(val) {
       if (typeof val !== 'number' || isNaN(val)) return '0.000';
       return val.toFixed(3);
@@ -341,7 +340,7 @@
       lucide.createIcons();
       await loadStockDatabase();
       refreshRealtimeData();
-      setInterval(refreshRealtimeData, 180000); // ⏱️ 修改為 3 分鐘 (180,000 ms) 刷新一次
+      setInterval(refreshRealtimeData, 8000); // ⏱️ 修改回 8 秒刷新一次（跟貼即時股價）
     };
 
     async function loadStockDatabase() {
@@ -488,14 +487,14 @@
       dot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
 
       const now = new Date();
-      document.getElementById('last-update-time').innerText = now.toTimeString().substring(0, 5);
+      document.getElementById('last-update-time').innerText = now.toTimeString().split(' ')[0];
 
-      // 1. 每 3 分鐘記錄一筆快照
+      // 1. 每 8 秒記錄/微調當前 3 分鐘點位
       Object.values(data).forEach(stock => {
         append3MinRealtimeTick(stock);
       });
 
-      // 2. 渲染階段一清單
+      // 2. 渲染階段一清單 (每 8 秒最新報價)
       const listContainer = document.getElementById('stock-list');
       listContainer.innerHTML = '';
 
@@ -567,10 +566,15 @@
       }
     }
 
-    // 💡 以 3 分鐘為時間間隔追加點位
+    // 💡 核心算法：以 3 分鐘為時間槽（Slot）追加/更新數據點
     function append3MinRealtimeTick(stock) {
       const code = stock.code;
       if (!stock.price || stock.price <= 0) return;
+
+      const now = new Date();
+      // 將時間取整至最近的 3 分鐘單位（如 10:00, 10:03, 10:06）
+      const roundedMin = Math.floor(now.getMinutes() / 3) * 3;
+      const slotTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(roundedMin).padStart(2, '0')}`;
 
       if (!stockAccumulatedStore[code]) {
         stockAccumulatedStore[code] = [];
@@ -579,23 +583,28 @@
         const highP = stock.high > 0 ? stock.high : Math.max(openP, stock.price);
         const vwapP = stock.vwap > 0 ? stock.vwap : stock.price;
 
-        const now = new Date();
-        const t2 = new Date(now.getTime() - 6 * 60000).toTimeString().substring(0, 5);
-        const t1 = new Date(now.getTime() - 3 * 60000).toTimeString().substring(0, 5);
+        const t2 = new Date(now.getTime() - 6 * 60000);
+        const t2Str = `${String(t2.getHours()).padStart(2, '0')}:${String(Math.floor(t2.getMinutes()/3)*3).padStart(2, '0')}`;
+        const t1 = new Date(now.getTime() - 3 * 60000);
+        const t1Str = `${String(t1.getHours()).padStart(2, '0')}:${String(Math.floor(t1.getMinutes()/3)*3).padStart(2, '0')}`;
 
-        stockAccumulatedStore[code].push({ time: t2, price: lowP, vwap: (openP + vwapP)/2 });
-        stockAccumulatedStore[code].push({ time: t1, price: highP, vwap: vwapP });
+        stockAccumulatedStore[code].push({ time: t2Str, price: lowP, vwap: (openP + vwapP)/2 });
+        stockAccumulatedStore[code].push({ time: t1Str, price: highP, vwap: vwapP });
       }
 
-      const nowTimeStr = new Date().toTimeString().substring(0, 5); // 格式 HH:MM
       const history = stockAccumulatedStore[code];
+      const lastEntry = history[history.length - 1];
 
-      if (history.length === 0 || history[history.length - 1].time !== nowTimeStr) {
+      // 若跨越到新的 3 分鐘時段，追加新點位；否則即時更新當前 3 分鐘時段內的最新價
+      if (!lastEntry || lastEntry.time !== slotTimeStr) {
         history.push({
-          time: nowTimeStr,
+          time: slotTimeStr,
           price: stock.price,
           vwap: stock.vwap > 0 ? stock.vwap : stock.price
         });
+      } else {
+        lastEntry.price = stock.price;
+        lastEntry.vwap = stock.vwap > 0 ? stock.vwap : stock.price;
       }
 
       if (history.length > 25) {
@@ -647,7 +656,7 @@
       document.getElementById('score-momentum').innerText = `${rr.volScore} 分`;
       document.getElementById('score-tech').innerText = `${rr.techScore} 分`;
 
-      // 繪製雙圖表 (0.005 變動單位對齊)
+      // 繪製雙圖表 (3分鐘結構 + 0.005刻度)
       const history = stockAccumulatedStore[stock.code];
       if (history && history.length > 0) {
         renderSplitCharts(history);
@@ -675,7 +684,6 @@
         maxP = maxP + 0.01;
       }
 
-      // 將邊界鎖定在 0.005 的整數倍上
       minP = Math.floor((minP - 0.005) / 0.005) * 0.005;
       maxP = Math.ceil((maxP + 0.005) / 0.005) * 0.005;
 
@@ -716,7 +724,7 @@
               ticks: { 
                 color: '#9CA3AF', 
                 font: { size: 10 },
-                stepSize: 0.005, // 💡 設定刻度以 0.005 為變動步長
+                stepSize: 0.005,
                 callback: function(val) { return Number(val).toFixed(3); }
               }
             }
@@ -776,7 +784,7 @@
               ticks: { 
                 color: '#9CA3AF', 
                 font: { size: 10 },
-                stepSize: 0.005, // 💡 設定刻度以 0.005 為變動步長
+                stepSize: 0.005,
                 callback: function(val) { return Number(val).toFixed(3); }
               }
             }
