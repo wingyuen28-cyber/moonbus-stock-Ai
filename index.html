@@ -145,15 +145,37 @@
           </div>
         </div>
 
-        <!-- 實時脈衝累積走勢圖表 + VWAP -->
-        <div class="pt-2">
-          <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
-            <span>實時現價 (白線) vs VWAP 成本線 (黃線)</span>
-            <span class="text-indigo-400 font-medium">8秒實時脈衝累積</span>
+        <!-- 雙圖表拆分區域 -->
+        <div class="space-y-4 pt-2">
+          
+          <!-- 圖表一：實時現價走勢圖 (獨立 Canvas) -->
+          <div>
+            <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
+              <span class="text-white font-semibold flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-white inline-block"></span>
+                <span>圖表一：實時股價分時走勢 (獨立 Y 軸)</span>
+              </span>
+              <span class="text-indigo-400 font-medium">8秒實時脈衝</span>
+            </div>
+            <div class="h-36 w-full">
+              <canvas id="priceChart"></canvas>
+            </div>
           </div>
-          <div class="h-48 w-full">
-            <canvas id="vwapChart"></canvas>
+
+          <!-- 圖表二：VWAP 機構成本線走勢圖 (獨立 Canvas) -->
+          <div class="pt-3 border-t border-gray-800">
+            <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
+              <span class="text-amber-400 font-semibold flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+                <span>圖表二：VWAP 機構成本線 (獨立 Y 軸)</span>
+              </span>
+              <span class="text-amber-400 font-medium">機構平均成本</span>
+            </div>
+            <div class="h-36 w-full">
+              <canvas id="vwapChart"></canvas>
+            </div>
           </div>
+
         </div>
       </div>
 
@@ -195,10 +217,11 @@
 
   <script>
     let fullStockDatabase = {};
+    let priceChartInstance = null;
     let vwapChartInstance = null;
     let currentSelectedCode = '00700';
 
-    // 💡 實時累積快取：記錄各股票每 8 秒刷新累積的實時點位軌跡
+    // 💡 實時累積快取
     let stockAccumulatedStore = {};
 
     const DEFAULT_WATCHLIST = ['00700', '09988', '03690', '01810', '02800', '01211', '00981', '01024', '02342', '02015'];
@@ -226,6 +249,12 @@
       return clean.padStart(5, '0');
     }
 
+    // 💡 智能適應細價股 (0.080) 至 大盤股 (10000) 的小數點格式
+    function formatPriceNum(val) {
+      if (typeof val !== 'number' || isNaN(val)) return '0.00';
+      return val < 2.0 ? val.toFixed(3) : val.toFixed(2);
+    }
+
     function formatAmount(val) {
       const num = parseFloat(val);
       if (isNaN(num)) return '--';
@@ -234,7 +263,7 @@
       return num.toFixed(0);
     }
 
-    // AI 主力評級與描述
+    // AI 主力評級
     function evaluateAIRating(buyPct, changePct, volumeRatio) {
       const isHighVol = volumeRatio >= 1.8;
 
@@ -312,7 +341,7 @@
       lucide.createIcons();
       await loadStockDatabase();
       refreshRealtimeData();
-      setInterval(refreshRealtimeData, 8000); // 8 秒定時器
+      setInterval(refreshRealtimeData, 8000);
     };
 
     async function loadStockDatabase() {
@@ -461,12 +490,12 @@
       const now = new Date();
       document.getElementById('last-update-time').innerText = now.toTimeString().split(' ')[0];
 
-      // 1. 每次 8 秒刷新，將最新快照追加到歷史庫，累積成流暢曲線
+      // 1. 追加最新 8 秒數據快照
       Object.values(data).forEach(stock => {
         appendRealtimeTick(stock);
       });
 
-      // 2. 渲染階段一
+      // 2. 渲染階段一清單
       const listContainer = document.getElementById('stock-list');
       listContainer.innerHTML = '';
 
@@ -494,8 +523,8 @@
             
             <div class="flex justify-between items-baseline">
               <div>
-                <span class="text-xl font-black ${colorClass}">$${stock.price.toFixed(2)}</span>
-                <span class="text-xs font-semibold ${colorClass} ml-2">${sign}${stock.change.toFixed(2)} (${stock.pct.toFixed(2)}%)</span>
+                <span class="text-xl font-black ${colorClass}">$${formatPriceNum(stock.price)}</span>
+                <span class="text-xs font-semibold ${colorClass} ml-2">${sign}${formatPriceNum(stock.change)} (${stock.pct.toFixed(2)}%)</span>
               </div>
               <div class="text-xs text-gray-400">成交額: <span class="text-white">${formatAmount(stock.turnover)}</span></div>
             </div>
@@ -538,26 +567,22 @@
       }
     }
 
-    // 💡 核心算法：每一次 8 秒刷新都追加 (Append) 一筆實時數據點，累積成流暢圖像
+    // 💡 追加時間點快照
     function appendRealtimeTick(stock) {
       const code = stock.code;
       if (!stock.price || stock.price <= 0) return;
 
       if (!stockAccumulatedStore[code]) {
         stockAccumulatedStore[code] = [];
-
-        // 若無歷史點位，以今開、高、低與現價建構初始基礎節點
         const openP = stock.open > 0 ? stock.open : stock.prevClose;
         const lowP = stock.low > 0 ? stock.low : Math.min(openP, stock.price);
         const highP = stock.high > 0 ? stock.high : Math.max(openP, stock.price);
         const vwapP = stock.vwap > 0 ? stock.vwap : stock.price;
 
         const now = new Date();
-        const t3 = new Date(now.getTime() - 24000).toTimeString().split(' ')[0];
         const t2 = new Date(now.getTime() - 16000).toTimeString().split(' ')[0];
         const t1 = new Date(now.getTime() - 8000).toTimeString().split(' ')[0];
 
-        stockAccumulatedStore[code].push({ time: t3, price: openP, vwap: openP });
         stockAccumulatedStore[code].push({ time: t2, price: lowP, vwap: (openP + vwapP)/2 });
         stockAccumulatedStore[code].push({ time: t1, price: highP, vwap: vwapP });
       }
@@ -565,7 +590,6 @@
       const nowStr = new Date().toTimeString().split(' ')[0];
       const history = stockAccumulatedStore[code];
 
-      // 追加最新 8 秒快照數據
       if (history.length === 0 || history[history.length - 1].time !== nowStr) {
         history.push({
           time: nowStr,
@@ -574,8 +598,7 @@
         });
       }
 
-      // 保留最近 40 個時間節點，保持畫面最清晰
-      if (history.length > 40) {
+      if (history.length > 30) {
         history.shift();
       }
     }
@@ -592,16 +615,16 @@
       const priceElem = document.getElementById('stock-price');
       const changeElem = document.getElementById('stock-change');
 
-      priceElem.innerText = `$${stock.price.toFixed(2)}`;
+      priceElem.innerText = `$${formatPriceNum(stock.price)}`;
       priceElem.className = `text-2xl font-black ${isUp ? 'hk-up' : 'hk-down'}`;
 
-      changeElem.innerText = `${isUp ? '▲ +' : '▼ '}${stock.change.toFixed(2)} (${stock.pct.toFixed(2)}%)`;
+      changeElem.innerText = `${isUp ? '▲ +' : '▼ '}${formatPriceNum(stock.change)} (${stock.pct.toFixed(2)}%)`;
       changeElem.className = `text-xs font-semibold ${isUp ? 'hk-up' : 'hk-down'}`;
 
-      document.getElementById('prev-close').innerText = `$${stock.prevClose.toFixed(2)}`;
-      document.getElementById('open-price').innerText = `$${stock.open.toFixed(2)}`;
-      document.getElementById('high-price').innerText = `$${stock.high.toFixed(2)}`;
-      document.getElementById('low-price').innerText = `$${stock.low.toFixed(2)}`;
+      document.getElementById('prev-close').innerText = `$${formatPriceNum(stock.prevClose)}`;
+      document.getElementById('open-price').innerText = `$${formatPriceNum(stock.open)}`;
+      document.getElementById('high-price').innerText = `$${formatPriceNum(stock.high)}`;
+      document.getElementById('low-price').innerText = `$${formatPriceNum(stock.low)}`;
 
       document.getElementById('buy-pct').innerText = `${stock.buyPct}%`;
       document.getElementById('sell-pct').innerText = `${stock.sellPct}%`;
@@ -624,64 +647,56 @@
       document.getElementById('score-momentum').innerText = `${rr.volScore} 分`;
       document.getElementById('score-tech').innerText = `${rr.techScore} 分`;
 
-      // 渲染真實累積脈衝走勢圖
+      // 💡 分別繪製兩個獨立圖表
       const history = stockAccumulatedStore[stock.code];
       if (history && history.length > 0) {
-        renderVWAPChart(history);
+        renderSplitCharts(history);
       }
     }
 
-    // 💡 繪製與動態更新 8 秒累積走勢圖 (自動縮放 Y 軸，徹底解決底部橫行)
-    function renderVWAPChart(history) {
+    // 💡 繪製 2 個獨立圖表：獨立極限縮放，徹底解決白色線橫行與縮放問題
+    function renderSplitCharts(history) {
       if (!history || history.length === 0) return;
 
       const labels = history.map(h => h.time);
-      const prices = history.map(h => h.price);
-      const vwaps = history.map(h => h.vwap);
+      const prices = history.map(h => h.price).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+      const vwaps = history.map(h => h.vwap).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
 
-      // 嚴格過濾出大於 0 的有效數值，精準縮放 Y 軸
-      const validVals = [...prices, ...vwaps].filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
-      if (validVals.length === 0) return;
+      if (prices.length === 0) return;
 
-      let minVal = Math.min(...validVals);
-      let maxVal = Math.max(...validVals);
+      // -------------------------------------------------------------
+      // 📊 圖表一：實時股價走勢圖 (獨立 Y 軸縮放)
+      // -------------------------------------------------------------
+      let minP = Math.min(...prices);
+      let maxP = Math.max(...prices);
 
-      if (minVal === maxVal) {
-        minVal = minVal * 0.995;
-        maxVal = maxVal * 1.005;
+      if (minP === maxP) {
+        minP = minP * 0.995;
+        maxP = maxP * 1.005;
       } else {
-        const margin = (maxVal - minVal) * 0.15; // 上下留 15% 空間
-        minVal -= margin;
-        maxVal += margin;
+        const marginP = (maxP - minP) * 0.15; // 留 15% 上下邊距
+        minP -= marginP;
+        maxP += marginP;
       }
 
-      const ctx = document.getElementById('vwapChart').getContext('2d');
-      if (vwapChartInstance) vwapChartInstance.destroy();
+      const ctxPrice = document.getElementById('priceChart').getContext('2d');
+      if (priceChartInstance) priceChartInstance.destroy();
 
-      vwapChartInstance = new Chart(ctx, {
+      priceChartInstance = new Chart(ctxPrice, {
         type: 'line',
         data: {
           labels: labels,
-          datasets: [
-            {
-              label: '實時現價',
-              data: prices,
-              borderColor: '#FFFFFF',
-              borderWidth: 2,
-              pointRadius: 3,
-              pointBackgroundColor: '#FFFFFF',
-              tension: 0.2
-            },
-            {
-              label: 'VWAP 成本線',
-              data: vwaps,
-              borderColor: '#F59E0B',
-              borderWidth: 1.5,
-              borderDash: [4, 4],
-              pointRadius: 0,
-              tension: 0.15
-            }
-          ]
+          datasets: [{
+            label: '實時現價',
+            data: history.map(h => h.price),
+            borderColor: '#FFFFFF',
+            backgroundColor: 'rgba(255, 255, 255, 0.06)',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: '#FFFFFF',
+            fill: true,
+            tension: 0.2
+          }]
         },
         options: {
           responsive: true,
@@ -694,10 +709,75 @@
               ticks: { color: '#9CA3AF', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }
             },
             y: {
-              min: parseFloat(minVal.toFixed(2)),
-              max: parseFloat(maxVal.toFixed(2)),
+              beginAtZero: false,
+              min: parseFloat(minP.toFixed(3)),
+              max: parseFloat(maxP.toFixed(3)),
               grid: { color: '#1F2937' },
-              ticks: { color: '#9CA3AF', font: { size: 10 } }
+              ticks: { 
+                color: '#9CA3AF', 
+                font: { size: 10 },
+                callback: function(val) { return val < 2 ? val.toFixed(3) : val.toFixed(2); }
+              }
+            }
+          }
+        }
+      });
+
+      // -------------------------------------------------------------
+      // 📊 圖表二：VWAP 機構成本線走勢圖 (獨立 Y 軸縮放)
+      // -------------------------------------------------------------
+      let minV = vwaps.length > 0 ? Math.min(...vwaps) : minP;
+      let maxV = vwaps.length > 0 ? Math.max(...vwaps) : maxP;
+
+      if (minV === maxV) {
+        minV = minV * 0.995;
+        maxV = maxV * 1.005;
+      } else {
+        const marginV = (maxV - minV) * 0.15;
+        minV -= marginV;
+        maxV += marginV;
+      }
+
+      const ctxVWAP = document.getElementById('vwapChart').getContext('2d');
+      if (vwapChartInstance) vwapChartInstance.destroy();
+
+      vwapChartInstance = new Chart(ctxVWAP, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'VWAP 成本線',
+            data: history.map(h => h.vwap),
+            borderColor: '#F59E0B',
+            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+            borderWidth: 2,
+            borderDash: [3, 3],
+            pointRadius: 2,
+            pointBackgroundColor: '#F59E0B',
+            fill: true,
+            tension: 0.2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 200 },
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              grid: { color: '#1F2937' },
+              ticks: { color: '#9CA3AF', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }
+            },
+            y: {
+              beginAtZero: false,
+              min: parseFloat(minV.toFixed(3)),
+              max: parseFloat(maxV.toFixed(3)),
+              grid: { color: '#1F2937' },
+              ticks: { 
+                color: '#9CA3AF', 
+                font: { size: 10 },
+                callback: function(val) { return val < 2 ? val.toFixed(3) : val.toFixed(2); }
+              }
             }
           }
         }
