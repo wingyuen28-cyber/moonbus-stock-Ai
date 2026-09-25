@@ -38,7 +38,7 @@
     <!-- 狀態簡報 -->
     <div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-gray-800 text-xs">
       <div>自訂監測: <span id="watchlist-count" class="text-indigo-400 font-bold">0/10</span></div>
-      <div>刷新頻率: <span class="text-green-400 font-semibold">8秒/次</span></div>
+      <div>刷新頻率: <span class="text-green-400 font-semibold">3分鐘/次</span></div>
       <div>最後更新: <span id="last-update-time" class="text-gray-300">--:--:--</span></div>
     </div>
   </header>
@@ -67,7 +67,7 @@
       </div>
 
       <div class="flex justify-between items-center text-xs text-gray-400 px-1 pt-1">
-        <span>每 8 秒自動更新主力動能與量比數據</span>
+        <span>每 3 分鐘自動更新主力動能與量比數據</span>
         <button onclick="refreshRealtimeData()" class="text-indigo-400 hover:underline flex items-center space-x-1">
           <i data-lucide="refresh-cw" class="w-3 h-3"></i>
           <span>手動刷新</span>
@@ -106,15 +106,15 @@
             <div id="stock-code" class="text-xs text-gray-400 mt-0.5">HK.----- · 實時報價</div>
           </div>
           <div class="text-right">
-            <div id="stock-price" class="text-2xl font-black text-white">$0.00</div>
-            <div id="stock-change" class="text-xs font-semibold text-gray-400">0.00 (0.00%)</div>
+            <div id="stock-price" class="text-2xl font-black text-white">$0.000</div>
+            <div id="stock-change" class="text-xs font-semibold text-gray-400">0.000 (0.00%)</div>
           </div>
         </div>
         <div class="grid grid-cols-4 gap-2 pt-2 border-t border-gray-800 text-center text-xs">
-          <div><span class="text-gray-500 block">昨收</span><span id="prev-close" class="text-gray-300 font-medium">$0.00</span></div>
-          <div><span class="text-gray-500 block">今開</span><span id="open-price" class="text-gray-300 font-medium">$0.00</span></div>
-          <div><span class="text-gray-500 block">最高</span><span id="high-price" class="text-gray-300 font-medium">$0.00</span></div>
-          <div><span class="text-gray-500 block">最低</span><span id="low-price" class="text-gray-300 font-medium">$0.00</span></div>
+          <div><span class="text-gray-500 block">昨收</span><span id="prev-close" class="text-gray-300 font-medium">$0.000</span></div>
+          <div><span class="text-gray-500 block">今開</span><span id="open-price" class="text-gray-300 font-medium">$0.000</span></div>
+          <div><span class="text-gray-500 block">最高</span><span id="high-price" class="text-gray-300 font-medium">$0.000</span></div>
+          <div><span class="text-gray-500 block">最低</span><span id="low-price" class="text-gray-300 font-medium">$0.000</span></div>
         </div>
       </div>
 
@@ -145,7 +145,7 @@
           </div>
         </div>
 
-        <!-- 雙圖表拆分區域 -->
+        <!-- 雙圖表拆分區域 (3分鐘點位 / 0.005 單位) -->
         <div class="space-y-4 pt-2">
           
           <!-- 圖表一：實時現價走勢圖 (獨立 Canvas) -->
@@ -153,9 +153,9 @@
             <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
               <span class="text-white font-semibold flex items-center space-x-1.5">
                 <span class="w-2 h-2 rounded-full bg-white inline-block"></span>
-                <span>圖表一：實時股價分時走勢 (獨立 Y 軸)</span>
+                <span>圖表一：實時股價分時走勢 (0.005 刻度)</span>
               </span>
-              <span class="text-indigo-400 font-medium">8秒實時脈衝</span>
+              <span class="text-indigo-400 font-medium">3分鐘脈衝相間</span>
             </div>
             <div class="h-36 w-full">
               <canvas id="priceChart"></canvas>
@@ -167,7 +167,7 @@
             <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
               <span class="text-amber-400 font-semibold flex items-center space-x-1.5">
                 <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
-                <span>圖表二：VWAP 機構成本線 (獨立 Y 軸)</span>
+                <span>圖表二：VWAP 機構成本線 (0.005 刻度)</span>
               </span>
               <span class="text-amber-400 font-medium">機構平均成本</span>
             </div>
@@ -221,7 +221,7 @@
     let vwapChartInstance = null;
     let currentSelectedCode = '00700';
 
-    // 💡 實時累積快取
+    // 💡 實時 3 分鐘快照儲存庫
     let stockAccumulatedStore = {};
 
     const DEFAULT_WATCHLIST = ['00700', '09988', '03690', '01810', '02800', '01211', '00981', '01024', '02342', '02015'];
@@ -249,10 +249,10 @@
       return clean.padStart(5, '0');
     }
 
-    // 💡 智能適應細價股 (0.080) 至 大盤股 (10000) 的小數點格式
+    // 💡 精準顯示小數點格式（預設保留 3 位小數以配合 0.005 變動單位）
     function formatPriceNum(val) {
-      if (typeof val !== 'number' || isNaN(val)) return '0.00';
-      return val < 2.0 ? val.toFixed(3) : val.toFixed(2);
+      if (typeof val !== 'number' || isNaN(val)) return '0.000';
+      return val.toFixed(3);
     }
 
     function formatAmount(val) {
@@ -316,7 +316,7 @@
       }
     }
 
-    // AI 實時值博分數 (Risk-Reward Score)
+    // AI 實時值博分數
     function calculateRiskRewardScore(stock) {
       const capScore = stock.buyPct;
       const volScore = Math.min(100, Math.round(stock.volumeRatio * 35));
@@ -341,7 +341,7 @@
       lucide.createIcons();
       await loadStockDatabase();
       refreshRealtimeData();
-      setInterval(refreshRealtimeData, 8000);
+      setInterval(refreshRealtimeData, 180000); // ⏱️ 修改為 3 分鐘 (180,000 ms) 刷新一次
     };
 
     async function loadStockDatabase() {
@@ -488,11 +488,11 @@
       dot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
 
       const now = new Date();
-      document.getElementById('last-update-time').innerText = now.toTimeString().split(' ')[0];
+      document.getElementById('last-update-time').innerText = now.toTimeString().substring(0, 5);
 
-      // 1. 追加最新 8 秒數據快照
+      // 1. 每 3 分鐘記錄一筆快照
       Object.values(data).forEach(stock => {
-        appendRealtimeTick(stock);
+        append3MinRealtimeTick(stock);
       });
 
       // 2. 渲染階段一清單
@@ -559,7 +559,7 @@
 
       const quotes = await fetchRealtimeQuoteScript([code]);
       if (quotes && quotes[code] && quotes[code].price > 0) {
-        appendRealtimeTick(quotes[code]);
+        append3MinRealtimeTick(quotes[code]);
         updateDetailCard(quotes[code]);
         switchTab(2);
       } else {
@@ -567,8 +567,8 @@
       }
     }
 
-    // 💡 追加時間點快照
-    function appendRealtimeTick(stock) {
+    // 💡 以 3 分鐘為時間間隔追加點位
+    function append3MinRealtimeTick(stock) {
       const code = stock.code;
       if (!stock.price || stock.price <= 0) return;
 
@@ -580,25 +580,25 @@
         const vwapP = stock.vwap > 0 ? stock.vwap : stock.price;
 
         const now = new Date();
-        const t2 = new Date(now.getTime() - 16000).toTimeString().split(' ')[0];
-        const t1 = new Date(now.getTime() - 8000).toTimeString().split(' ')[0];
+        const t2 = new Date(now.getTime() - 6 * 60000).toTimeString().substring(0, 5);
+        const t1 = new Date(now.getTime() - 3 * 60000).toTimeString().substring(0, 5);
 
         stockAccumulatedStore[code].push({ time: t2, price: lowP, vwap: (openP + vwapP)/2 });
         stockAccumulatedStore[code].push({ time: t1, price: highP, vwap: vwapP });
       }
 
-      const nowStr = new Date().toTimeString().split(' ')[0];
+      const nowTimeStr = new Date().toTimeString().substring(0, 5); // 格式 HH:MM
       const history = stockAccumulatedStore[code];
 
-      if (history.length === 0 || history[history.length - 1].time !== nowStr) {
+      if (history.length === 0 || history[history.length - 1].time !== nowTimeStr) {
         history.push({
-          time: nowStr,
+          time: nowTimeStr,
           price: stock.price,
           vwap: stock.vwap > 0 ? stock.vwap : stock.price
         });
       }
 
-      if (history.length > 30) {
+      if (history.length > 25) {
         history.shift();
       }
     }
@@ -647,14 +647,14 @@
       document.getElementById('score-momentum').innerText = `${rr.volScore} 分`;
       document.getElementById('score-tech').innerText = `${rr.techScore} 分`;
 
-      // 💡 分別繪製兩個獨立圖表
+      // 繪製雙圖表 (0.005 變動單位對齊)
       const history = stockAccumulatedStore[stock.code];
       if (history && history.length > 0) {
         renderSplitCharts(history);
       }
     }
 
-    // 💡 繪製 2 個獨立圖表：獨立極限縮放，徹底解決白色線橫行與縮放問題
+    // 💡 繪製雙圖表：Y 軸刻度嚴格對齊 0.005 單位
     function renderSplitCharts(history) {
       if (!history || history.length === 0) return;
 
@@ -665,19 +665,19 @@
       if (prices.length === 0) return;
 
       // -------------------------------------------------------------
-      // 📊 圖表一：實時股價走勢圖 (獨立 Y 軸縮放)
+      // 📊 圖表一：股價走勢圖 (以 0.005 為變動步長對齊)
       // -------------------------------------------------------------
       let minP = Math.min(...prices);
       let maxP = Math.max(...prices);
 
       if (minP === maxP) {
-        minP = minP * 0.995;
-        maxP = maxP * 1.005;
-      } else {
-        const marginP = (maxP - minP) * 0.15; // 留 15% 上下邊距
-        minP -= marginP;
-        maxP += marginP;
+        minP = minP - 0.01;
+        maxP = maxP + 0.01;
       }
+
+      // 將邊界鎖定在 0.005 的整數倍上
+      minP = Math.floor((minP - 0.005) / 0.005) * 0.005;
+      maxP = Math.ceil((maxP + 0.005) / 0.005) * 0.005;
 
       const ctxPrice = document.getElementById('priceChart').getContext('2d');
       if (priceChartInstance) priceChartInstance.destroy();
@@ -695,7 +695,7 @@
             pointRadius: 3,
             pointBackgroundColor: '#FFFFFF',
             fill: true,
-            tension: 0.2
+            tension: 0.15
           }]
         },
         options: {
@@ -706,7 +706,7 @@
           scales: {
             x: {
               grid: { color: '#1F2937' },
-              ticks: { color: '#9CA3AF', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }
+              ticks: { color: '#9CA3AF', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }
             },
             y: {
               beginAtZero: false,
@@ -716,7 +716,8 @@
               ticks: { 
                 color: '#9CA3AF', 
                 font: { size: 10 },
-                callback: function(val) { return val < 2 ? val.toFixed(3) : val.toFixed(2); }
+                stepSize: 0.005, // 💡 設定刻度以 0.005 為變動步長
+                callback: function(val) { return Number(val).toFixed(3); }
               }
             }
           }
@@ -724,19 +725,18 @@
       });
 
       // -------------------------------------------------------------
-      // 📊 圖表二：VWAP 機構成本線走勢圖 (獨立 Y 軸縮放)
+      // 📊 圖表二：VWAP 成本線圖 (以 0.005 為變動步長對齊)
       // -------------------------------------------------------------
       let minV = vwaps.length > 0 ? Math.min(...vwaps) : minP;
       let maxV = vwaps.length > 0 ? Math.max(...vwaps) : maxP;
 
       if (minV === maxV) {
-        minV = minV * 0.995;
-        maxV = maxV * 1.005;
-      } else {
-        const marginV = (maxV - minV) * 0.15;
-        minV -= marginV;
-        maxV += marginV;
+        minV = minV - 0.01;
+        maxV = maxV + 0.01;
       }
+
+      minV = Math.floor((minV - 0.005) / 0.005) * 0.005;
+      maxV = Math.ceil((maxV + 0.005) / 0.005) * 0.005;
 
       const ctxVWAP = document.getElementById('vwapChart').getContext('2d');
       if (vwapChartInstance) vwapChartInstance.destroy();
@@ -755,7 +755,7 @@
             pointRadius: 2,
             pointBackgroundColor: '#F59E0B',
             fill: true,
-            tension: 0.2
+            tension: 0.15
           }]
         },
         options: {
@@ -766,7 +766,7 @@
           scales: {
             x: {
               grid: { color: '#1F2937' },
-              ticks: { color: '#9CA3AF', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }
+              ticks: { color: '#9CA3AF', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }
             },
             y: {
               beginAtZero: false,
@@ -776,7 +776,8 @@
               ticks: { 
                 color: '#9CA3AF', 
                 font: { size: 10 },
-                callback: function(val) { return val < 2 ? val.toFixed(3) : val.toFixed(2); }
+                stepSize: 0.005, // 💡 設定刻度以 0.005 為變動步長
+                callback: function(val) { return Number(val).toFixed(3); }
               }
             }
           }
