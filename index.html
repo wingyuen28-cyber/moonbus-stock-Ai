@@ -1,48 +1,78 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>港股異動 V2.2修復</title><script src="https://cdn.tailwindcss.com"></script>
-<style>body{background:#0D1117;color:#E6EDF3}.card-bg{background:#161B22;border:1px solid #30363D}</style>
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>港股 AI 異動大師 V2.5</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>body{background:#0D1117;color:#E6EDF3}.hk-up{color:#30D158}.hk-down{color:#FF3B30}.card-bg{background:#161B22;border:1px solid #30363D}.hot-gem{border-color:#A855F7!important;box-shadow:0 0 15px rgba(168,85,247,.35)}.hot-main{border-color:#FACC15!important;box-shadow:0 0 15px rgba(250,204,21,.35)}</style>
 </head>
-<body>
-<header class="card-bg p-4"><div class="flex justify-between"><b>港股 AI 異動大師 V2.2</b><span id="db-status">連線中</span></div></header>
-<main class="max-w-md mx-auto p-4 space-y-4">
-<div class="flex bg-gray-900 p-1 rounded-lg">
-<button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 bg-indigo-600 rounded text-white">階段一</button>
-<button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2 text-gray-400">階段二</button>
+<body class="pb-10">
+<header class="sticky top-0 z-50 card-bg px-4 py-3">
+<div class="flex justify-between items-center max-w-md mx-auto"><h1 class="font-bold text-white">港股 AI 異動大師 <span class="text-xs px-2 py-0.5 rounded bg-yellow-900 text-yellow-300">V2.5 最終</span></h1><div class="text-xs"><span id="status-dot" class="w-2 h-2 rounded-full bg-green-500 inline-block"></span> <span id="db-status">實時連線中</span></div></div>
+<div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-gray-800 text-xs text-gray-400"><div>自訂:<span id="watchlist-count" class="text-indigo-400 font-bold ml-1">--</span></div><div>異動榜:<span id="hot-count" class="text-yellow-400 font-bold ml-1">--</span></div><div id="last-update">--:--:--</div></div>
+</header>
+
+<main class="max-w-md mx-auto px-4 mt-4 space-y-4">
+<section class="card-bg p-3 rounded-xl border border-yellow-900/50">
+<div class="flex justify-between items-center"><span class="text-yellow-400 font-black text-sm">💎 全場異動榜</span><button onclick="loadHot()" class="text-[11px] text-yellow-400 underline">刷新榜單</button></div>
+<div id="hot-list" class="space-y-2 mt-2 text-xs text-center py-2">讀取中...</div>
+</section>
+
+<div class="flex rounded-lg bg-gray-900 p-1 border border-gray-800">
+<button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 text-sm rounded-md bg-indigo-600 text-white">階段一：自訂監測</button>
+<button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2 text-sm rounded-md text-gray-400">階段二：深度分析</button>
 </div>
 
 <section id="tab1-content" class="space-y-3">
-<div id="hot-list" class="card-bg p-3 rounded">全場異動榜讀取中... (如果冇 hot_stocks.json 會顯示暫無)</div>
-<div class="card-bg p-3 rounded"><input id="add-watchlist-input" placeholder="輸入 700" class="bg-gray-900 border border-gray-700 rounded px-3 py-2 w-3/4"><button onclick="handleAddWatchlist()" class="bg-indigo-600 px-3 py-2 rounded ml-2">加入</button></div>
+<div class="card-bg p-3 rounded-xl"><div class="flex space-x-2"><input id="add-input" placeholder="如 2342,8447" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm"><button onclick="addWatch()" class="bg-indigo-600 px-4 rounded-lg text-sm">加入</button></div></div>
 <div id="stock-list" class="space-y-2"></div>
 </section>
 
-<section id="tab2-content" class="hidden space-y-3">
-<div class="card-bg p-3 rounded flex"><input id="search-input" value="00700" class="bg-gray-900 border rounded px-3 py-2 flex-1"><button onclick="handleSearch()" class="bg-indigo-600 px-4 rounded ml-2">分析</button></div>
-<div class="card-bg p-4 rounded"><h2 id="stock-name">--</h2><div id="stock-code">HK.-----</div><div id="stock-price" class="text-2xl font-black">$0.000</div><div id="stock-change">0%</div></div>
-<div class="card-bg p-3 rounded text-xs"><div>買盤 <span id="buy-pct">0%</span> 沽盤 <span id="sell-pct">0%</span> 量比 <span id="vol-ratio-disp">1x</span></div></div>
+<section id="tab2-content" class="space-y-4 hidden">
+<div class="card-bg p-3 rounded-xl flex space-x-2"><input id="search-input" value="00700" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm"><button onclick="doSearch()" class="bg-indigo-600 px-4 rounded-lg text-sm">分析</button></div>
+<div class="card-bg p-4 rounded-xl">
+<div class="flex justify-between"><div><h2 id="s-name" class="font-bold">---</h2><div id="s-code" class="text-xs text-gray-400">HK.-----</div><span id="s-cat" class="text-[10px] px-2 py-0.5 rounded bg-indigo-900/60 text-indigo-300">---</span></div><div class="text-right"><div id="s-price" class="text-2xl font-black">$0.000</div><div id="s-change" class="text-xs">0.00%</div></div></div>
+<div class="grid grid-cols-4 gap-2 pt-2 mt-2 border-t border-gray-800 text-center text-[11px] text-gray-400"><div>昨收<br><span id="s-prev" class="text-white">--</span></div><div>今開<br><span id="s-open" class="text-white">--</span></div><div>最高<br><span id="s-high" class="text-white">--</span></div><div>最低<br><span id="s-low" class="text-white">--</span></div></div>
+</div>
+<div class="card-bg p-4 rounded-xl space-y-3">
+<div class="flex justify-between"><span class="font-bold text-sm">AI 主力評級</span><span id="ai-badge" class="px-2 py-1 rounded text-xs border">計算中</span></div>
+<div class="flex justify-between text-xs"><span>買盤 <span id="buy-pct">50%</span></span><span>量比 <span id="vol-disp">1.0x</span></span><span>沽盤 <span id="sell-pct">50%</span></span></div>
+<div class="w-full bg-gray-800 h-3 rounded-full flex overflow-hidden"><div id="buy-bar" class="bg-green-500 h-full" style="width:50%"></div><div id="sell-bar" class="bg-red-500 h-full" style="width:50%"></div></div>
+<div class="h-32"><canvas id="priceChart"></canvas></div>
+<div class="h-24"><canvas id="volChart"></canvas></div>
+</div>
 </section>
 </main>
 
 <script>
-// 最核心，放在最前，保證一定可以切換
 function switchTab(n){
-  document.getElementById('tab1-content').style.display = n===1?'block':'none';
-  document.getElementById('tab2-content').style.display = n===2?'block':'none';
-  document.getElementById('tab1-btn').className = n===1?'flex-1 py-2 bg-indigo-600 rounded text-white':'flex-1 py-2 text-gray-400';
-  document.getElementById('tab2-btn').className = n===2?'flex-1 py-2 bg-indigo-600 rounded text-white':'flex-1 py-2 text-gray-400';
+ document.getElementById('tab1-content').classList.toggle('hidden', n!==1);
+ document.getElementById('tab2-content').classList.toggle('hidden', n!==2);
+ document.getElementById('tab1-btn').className = n===1? "flex-1 py-2 text-sm rounded-md bg-indigo-600 text-white" : "flex-1 py-2 text-sm rounded-md text-gray-400";
+ document.getElementById('tab2-btn').className = n===2? "flex-1 py-2 text-sm rounded-md bg-indigo-600 text-white" : "flex-1 py-2 text-sm rounded-md text-gray-400";
 }
-let watchListCodes = ['00700','09988','03690','08447'];
+let watchListCodes = JSON.parse(localStorage.getItem('hk_watch_v25')||'["00700","09988","03690","08447","02342","00981","02800","01211"]');
+let currentCode='00700', priceChart=null, volChart=null, tickStore={};
 function normalizeCode(c){return String(c).replace(/\D/g,'').padStart(5,'0');}
-function fetchQuote(codes){return new Promise(r=>{let id='qt';let old=document.getElementById(id);if(old)old.remove();let q=codes.map(x=>'r_hk'+normalizeCode(x)).join(',');let s=document.createElement('script');s.id=id;s.src='https://qt.gtimg.cn/q='+q+'&_t='+Date.now();s.onload=()=>{let o={};codes.forEach(code=>{let raw=window['v_r_hk'+normalizeCode(code)];if(!raw)return;let p=raw.split('~');o[normalizeCode(code)]={code:normalizeCode(code),name:p[1],price:parseFloat(p[3]),prev:parseFloat(p[4]),change:parseFloat(p[3])-parseFloat(p[4]),pct:((parseFloat(p[3])-parseFloat(p[4]))/parseFloat(p[4])*100)};});r(o);};s.onerror=()=>r({});document.body.appendChild(s);});}
-async function refresh(){let data=await fetchQuote(watchListCodes);let cont=document.getElementById('stock-list');cont.innerHTML='';Object.values(data).forEach(s=>{cont.innerHTML+=`<div onclick="selectStock('${s.code}')" class="card-bg p-3 rounded cursor-pointer"><b>${s.name}</b> ${s.code} $${s.price} <span class="${s.pct>=0?'text-green-400':'text-red-400'}">${s.pct.toFixed(2)}%</span></div>`;});document.getElementById('db-status').innerText='實時連線中';}
-async function selectStock(c){let code=normalizeCode(c);let data=await fetchQuote([code]);let s=data[code];if(!s)return;document.getElementById('stock-name').innerText=s.name;document.getElementById('stock-code').innerText='HK.'+s.code;document.getElementById('stock-price').innerText='$'+s.price;document.getElementById('stock-change').innerText=s.pct.toFixed(2)+'%';switchTab(2);}
-function handleAddWatchlist(){let c=normalizeCode(document.getElementById('add-watchlist-input').value);if(c&&!watchListCodes.includes(c))watchListCodes.push(c);refresh();}
-function handleSearch(){selectStock(document.getElementById('search-input').value);}
-window.onload=()=>{refresh();setInterval(refresh,8000);};
-// hot榜容錯讀取，失敗都唔會卡死
-fetch('hot_stocks.json').then(r=>r.json()).then(j=>{let list=j.data||[];let box=document.getElementById('hot-list');if(list.length===0){box.innerHTML='暫無異動股 (未生成 hot_stocks.json)';return;}box.innerHTML='';list.slice(0,10).forEach(s=>{box.innerHTML+=`<div onclick="selectStock('${s.code}')" class="border-2 border-yellow-400 rounded p-2 mb-2 cursor-pointer">💎 ${s.name} ${s.code} ${s.change_pct}% ${s.reason}</div>`;});}).catch(()=>{document.getElementById('hot-list').innerHTML='暫無 hot_stocks.json，請先跑 generate_stocks.py V2';});
-</script>
-</body>
-</html>
+function formatP(v){return isNaN(v)?'--':Number(v).toFixed(3);}
+function addWatch(){let c=normalizeCode(document.getElementById('add-input').value); if(!c) return; if(watchListCodes.includes(c)) return alert('已存在'); if(watchListCodes.length>=10) return alert('最多10隻'); watchListCodes.push(c); localStorage.setItem('hk_watch_v25',JSON.stringify(watchListCodes)); document.getElementById('add-input').value=''; refreshAll();}
+function removeWatch(e,code){e.stopPropagation(); watchListCodes=watchListCodes.filter(x=>x!==code); localStorage.setItem('hk_watch_v25',JSON.stringify(watchListCodes)); refreshAll();}
+function fetchQuotes(codes){
+ return new Promise(res=>{
+  let id='qt'; let old=document.getElementById(id); if(old) old.remove();
+  let q=codes.map(x=>'r_hk'+normalizeCode(x)).join(',');
+  let s=document.createElement('script'); s.id=id; s.src='https://qt.gtimg.cn/q='+q+'&_t='+Date.now();
+  s.onload=()=>{let out={}; codes.forEach(rc=>{let code=normalizeCode(rc); let raw=window['v_r_hk'+code]; if(!raw) return; let p=raw.split('~'); let price=parseFloat(p[3])||0, prev=parseFloat(p[4])||0, open=parseFloat(p[5])||0, high=parseFloat(p[33])||price, low=parseFloat(p[34])||price; if(price===0) return; let pct=prev?((price-prev)/prev*100):0; let outer=parseFloat(p[7])||0, inner=parseFloat(p[8])||0, tot=outer+inner, buy=50; if(tot>0) buy=Math.round(outer/tot*100); let vol=parseFloat(p[49])||1; out[code]={code,name:p[1]||code,price,prev,open,high,low,pct,buyPct:buy,sellPct:100-buy,vol}; }); res(out);};
+  s.onerror=()=>res({}); document.body.appendChild(s);
+ });
+}
+async function loadHot(){
+ let urls=['hot_stocks.json','www/hot_stocks.json'];
+ let data=null;
+ for(let u of urls){try{let r=await fetch(u+'?_t='+Date.now()); if(r.ok){data=await r.json(); if(data) break;}}catch(e){}}
+ let box=document.getElementById('hot-list'), countEl=document.getElementById('hot-count');
+ if(!data||!data.data||data.data.length===0){box.innerHTML='今日暫無異動'; countEl.innerText='0隻'; return;}
+ countEl.innerText=data.data.length+'隻'; box.innerHTML='';
+ data.data.forEach(s=>{
+  let isUp=s
