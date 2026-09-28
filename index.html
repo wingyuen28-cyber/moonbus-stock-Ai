@@ -17,11 +17,17 @@ body{background:#0D1117;color:#E6EDF3}.card-bg{background:#161B22;border:1px sol
 @keyframes drive{0%{transform:translateX(-8px)}100%{transform:translateX(8px)}}
 </style>
 </head>
+
 <body class="pb-10">
-<div id="splash">
-<img src="icon-512.png" class="w-24 h-24 rounded-2xl bus-anim">
-<div class="text-yellow-400 font-black mt-4 tracking-[0.2em]">MOONBUS DEPARTING...</div>
-<div class="text-zinc-600 text-xs mt-2 font-mono">V3.6 PWA • AI TERMINAL</div>
+<script>
+// 核彈1：秒殺所有舊SW
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));if(window.caches){caches.keys().then(ks=>ks.forEach(k=>caches.delete(k)));}}
+// 核彈2：1.5秒後無論點都剷走splash
+setTimeout(()=>{var s=document.getElementById('splash');if(s){s.style.display='none';}},1500);
+</script>
+
+<div id="splash" style="position:fixed;inset:0;background:#0D1117;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center">
+<img src="icon-512.png" style="width:96px;height:96px;border-radius:16px"><div style="color:#facc15;font-weight:900;margin-top:16px;letter-spacing:0.2em">MOONBUS DEPARTING...</div><div style="color:#52525b;font-size:12px;margin-top:8px;font-family:monospace">V3.7 PWA • AI TERMINAL</div>
 </div>
 
 <header class="sticky top-0 z-40 card-bg px-4 py-3">
