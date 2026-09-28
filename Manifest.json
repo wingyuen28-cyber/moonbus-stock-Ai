@@ -4,7 +4,7 @@
   "description": "AI選股終端 V3.4",
   "start_url": "/moonbus-stock-Ai/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
+  "background_color": "#0D1117",
   "theme_color": "#facc15",
   "orientation": "portrait",
   "icons": [
