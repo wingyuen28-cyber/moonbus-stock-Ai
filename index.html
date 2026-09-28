@@ -36,6 +36,16 @@ async function askPush(){
 <body class="pb-10">
 <!-- 開屏 -->
 <div id="splash"><img src="icon-512.png" class="w-24 h-24 rounded-2xl bus-anim"><div class="text-yellow-400 font-black mt-4 tracking-widest">MOONBUS DEPARTING...</div><div class="text-zinc-600 text-xs mt-2 font-mono">V3.5 PWA • AI TERMINAL</div></div>
+<div id="splash" onclick="this.classList.add('hide')">
+  <img src="icon-512.png" class="w-24 h-24 rounded-2xl bus-anim">
+  <div class="text-yellow-400 font-black mt-4 tracking-widest">MOONBUS DEPARTING...</div>
+  <div class="text-zinc-600 text-xs mt-2 font-mono">V3.5 PWA • AI TERMINAL</div>
+  <div class="text-[10px] text-zinc-600 mt-6 underline">點一下立即發車</div>
+</div>
+<script>
+// 保命線：無論咩error都1.5秒關屏
+setTimeout(()=>{const el=document.getElementById('splash');if(el){el.classList.add('hide');}},1500);
+</script>
 
 <header class="sticky top-0 z-50 card-bg px-4 py-3 backdrop-blur">
 <div class="flex justify-between items-center max-w-md mx-auto">
