@@ -1,23 +1,23 @@
 {
-  "update_time": "2026-09-28 07:50:20",
-  "count": 7,
+  "update_time": "2026-09-28 07:55:12",
+  "count": 6,
   "data": [
     {
       "code": "02342",
       "name": "航標控股",
       "category": "港股主板",
-      "change_pct": -4.85,
-      "vol_ratio": 4.8,
-      "reason": "急跌 4.85% | 振幅擴大 | 資金關注",
+      "change_pct": -6.17,
+      "vol_ratio": 6.4,
+      "reason": "急跌 6.17% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
       "code": "00981",
       "name": "中芯國際",
       "category": "港股主板",
-      "change_pct": -3.63,
-      "vol_ratio": 3.4,
-      "reason": "急跌 3.63% | 振幅擴大 | 資金關注",
+      "change_pct": -3.71,
+      "vol_ratio": 3.5,
+      "reason": "急跌 3.71% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
@@ -33,9 +33,9 @@
       "code": "00700",
       "name": "騰訊控股",
       "category": "港股主板",
-      "change_pct": 0.92,
-      "vol_ratio": 2.1,
-      "reason": "急升 0.92% | 振幅擴大 | 資金關注",
+      "change_pct": 0.78,
+      "vol_ratio": 1.9,
+      "reason": "急升 0.78% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
@@ -54,15 +54,6 @@
       "change_pct": -0.58,
       "vol_ratio": 0.3,
       "reason": "急跌 0.58% | 振幅擴大 | 資金關注",
-      "is_gem": false
-    },
-    {
-      "code": "03690",
-      "name": "美團-W",
-      "category": "港股主板",
-      "change_pct": 0.56,
-      "vol_ratio": 1.7,
-      "reason": "急升 0.56% | 振幅擴大 | 資金關注",
       "is_gem": false
     }
   ]
