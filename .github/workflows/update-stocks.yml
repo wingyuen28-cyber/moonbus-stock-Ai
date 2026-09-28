@@ -1,27 +1,21 @@
 name: 更新港股異動榜 (含創業板)
-
 on:
+  workflow_dispatch:
   schedule:
-    - cron: '0 1,4,7 * * 1-5'  # 香港時間 09:30, 12:00, 15:00 自動跑
-  workflow_dispatch:  # 俾你手動按鈕
-
+    - cron: '0 1,4,7 * * 1-5'
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: Install dependencies
-        run: pip install pandas requests openpyxl xlrd xlwt
-      - name: Run scanner
-        run: python generate_stocks.py
-      - name: Commit files
-        run: |
-          git config --global user.name 'hk-bot'
-          git config --global user.email 'bot@github.com'
-          git add stocks.json hot_stocks.json www/stocks.json www/hot_stocks.json
-          git commit -m "Auto update hot stocks $(date +'%Y-%m-%d %H:%M')" || echo "No changes"
-          git push
+      - run: pip install pandas requests openpyxl xlrd
+      - run: python generate_stocks.py
+      - run: |
+          git config user.name "bot"
+          git config user.email "bot@github.com"
+          git add -A || true
+          git diff --staged --quiet || git commit -m "auto update"
+          git push || true
