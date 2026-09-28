@@ -1,23 +1,23 @@
 {
-  "update_time": "2026-09-28 08:07:50",
-  "count": 5,
+  "update_time": "2026-09-28 08:39:38",
+  "count": 7,
   "data": [
     {
       "code": "02342",
       "name": "航標控股",
       "category": "港股主板",
-      "change_pct": -6.17,
-      "vol_ratio": 6.4,
-      "reason": "急跌 6.17% | 振幅擴大 | 資金關注",
+      "change_pct": -5.73,
+      "vol_ratio": 5.9,
+      "reason": "急跌 5.73% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
       "code": "00981",
       "name": "中芯國際",
       "category": "港股主板",
-      "change_pct": -3.24,
-      "vol_ratio": 2.9,
-      "reason": "急跌 3.24% | 振幅擴大 | 資金關注",
+      "change_pct": -3.63,
+      "vol_ratio": 3.4,
+      "reason": "急跌 3.63% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
@@ -33,18 +33,36 @@
       "code": "00700",
       "name": "騰訊控股",
       "category": "港股主板",
-      "change_pct": 0.78,
+      "change_pct": 0.73,
       "vol_ratio": 1.9,
-      "reason": "急升 0.78% | 振幅擴大 | 資金關注",
+      "reason": "急升 0.73% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
       "code": "02800",
       "name": "盈富基金",
       "category": "ETF",
-      "change_pct": 0.64,
-      "vol_ratio": 1.8,
-      "reason": "急升 0.64% | 振幅擴大 | 資金關注",
+      "change_pct": 0.72,
+      "vol_ratio": 1.9,
+      "reason": "急升 0.72% | 振幅擴大 | 資金關注",
+      "is_gem": false
+    },
+    {
+      "code": "09988",
+      "name": "阿里巴巴-W",
+      "category": "港股主板",
+      "change_pct": -0.65,
+      "vol_ratio": 0.2,
+      "reason": "急跌 0.65% | 振幅擴大 | 資金關注",
+      "is_gem": false
+    },
+    {
+      "code": "01211",
+      "name": "比亞迪股份",
+      "category": "港股主板",
+      "change_pct": -0.51,
+      "vol_ratio": 0.4,
+      "reason": "急跌 0.51% | 振幅擴大 | 資金關注",
       "is_gem": false
     }
   ]
