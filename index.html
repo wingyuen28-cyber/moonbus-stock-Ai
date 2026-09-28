@@ -1,5 +1,23 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
+<!-- Splash -->
+<style>
+#splash{position:fixed;inset:0;background:#0D1117;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s}
+#splash.hide{opacity:0;pointer-events:none}
+.bus-anim{animation:drive 1.2s infinite alternate}
+@keyframes drive{0%{transform:translateX(-10px)}100%{transform:translateX(10px)}}
+</style>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js');}
+// 申請通知權限
+async function askPush(){
+  if(Notification.permission!=='granted'){await Notification.requestPermission();}
+}
+</script>
+</head>
+<body>
+<div id="splash"><img src="icon-512.png" class="w-24 h-24 rounded-2xl bus-anim"><div class="text-yellow-400 font-black mt-4 tracking-widest">MOONBUS DEPARTING...</div><div class="text-zinc-600 text-xs mt-2 font-mono">V3.5 PWA • AI TERMINAL</div></div>
+<script>window.addEventListener('load',()=>setTimeout(()=>document.getElementById('splash').classList.add('hide'),1200));</script>
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MoonBus Stock Select AI</title>
