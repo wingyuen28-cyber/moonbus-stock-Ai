@@ -2,83 +2,28 @@
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>MoonBus 股票精選 AI</title>
+<title>MoonBus AI V5.6</title>
 <link rel="icon" href="icon-192.png">
-<meta name="theme-color" content="#FACC15">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-body{background:#0D1117;color:#E6EDF3}
-.card-bg{background:#161B22}
-.gold{color:#FACC15}.gold-light{color:#FDE68A}
-#splash{position:fixed;inset:0;background:#0D1117;z-index:99999;display:flex;align-items:center;justify-content:center;animation:hideSplash 1.6s forwards}
-@keyframes hideSplash{0%{opacity:1}80%{opacity:1}100%{opacity:0;visibility:hidden}}
-.no-scrollbar::-webkit-scrollbar{display:none}
-</style>
+<style>body{background:#0D1117;color:#E6EDF3}.card-bg{background:#161B22}.gold{color:#FACC15}.gold-light{color:#FDE68A}#splash{position:fixed;inset:0;background:#0D1117;z-index:99999;display:flex;align-items:center;justify-content:center;animation:hideSplash 1.2s forwards}@keyframes hideSplash{0%{opacity:1}80%{opacity:1}100%{opacity:0;visibility:hidden}}.no-scrollbar::-webkit-scrollbar{display:none}</style>
 </head>
 <body class="pb-28">
-<div id="splash"><div style="color:#facc15;font-weight:900;letter-spacing:1px">MOONBUS V5.5 PRO</div></div>
-
+<div id="splash"><div style="color:#facc15;font-weight:900">MOONBUS V5.6 PRO</div></div>
 <script>
 const DEFAULT_WATCH=["00700","09988","03690","08447","02342","00981","02800","01211"];
 const TRAD={"00700":"騰訊控股","09988":"阿里巴巴","03690":"美團","08447":"MS CONCEPT","02342":"京信通信","00981":"中芯國際","02800":"盈富基金","01211":"比亞迪股份"};
-let w=JSON.parse(localStorage.getItem('mb_watch_v33')||'null');
-if(!w||!Array.isArray(w)||w.length==0){w=DEFAULT_WATCH.slice();localStorage.setItem('mb_watch_v33',JSON.stringify(w));}
-let cur='02342',chart=null,ticks={},detail={},hot=[];
-
+const PROFILE={"00700":"騰訊控股，科網龍頭，遊戲廣告雲三引擎","09988":"阿里巴巴，電商雲計算龍頭，平台經濟估值修復","03690":"美團，生活服務平台，本地商業核心","08447":"MS CONCEPT，創業板細價股，仙股特性成交稀疏","02342":"京信通信，5G基站天線龍頭，波動大","00981":"中芯國際，晶圓代工龍頭，國產替代核心","02800":"盈富基金，追蹤恒指，港股大盤風向標","01211":"比亞迪股份，新能源車電池一體化龍頭"};
+let w=JSON.parse(localStorage.getItem('mb_watch_v33')||'null');if(!w||!w.length){w=DEFAULT_WATCH.slice();localStorage.setItem('mb_watch_v33',JSON.stringify(w))}
+let cur='02342',chart=null,ticks={},detail={};
 function norm(c){return String(c).replace(/\D/g,'').padStart(5,'0')}
 function fmtP(v){return isNaN(v)?'--':Number(v).toFixed(v>=10?2:3)}
 function fmtAmt(v){if(!v)return'--';v=Number(v);if(v>=1e8)return(v/1e8).toFixed(2)+'億';if(v>=1e4)return(v/1e4).toFixed(1)+'萬';return Math.round(v)+''}
 function nameOf(code,raw){return TRAD[code]||raw||code}
+function profOf(code){return PROFILE[code]||code+' 港股'}
 function addWatch(){let c=norm(document.getElementById('add-input').value);if(!c||c=='00000')return;if(w.includes(c))return alert('已在自選');if(w.length<10){w.push(c);localStorage.setItem('mb_watch_v33',JSON.stringify(w));document.getElementById('add-input').value='';refresh()}else alert('已滿10隻')}
 function delWatch(c){if(!confirm('刪除 HK.'+c+'?'))return;w=w.filter(x=>x!=c);localStorage.setItem('mb_watch_v33',JSON.stringify(w));refresh()}
-
-function fetchQ(codes){
-return new Promise(function(res){
-let q=codes.map(function(x){return 'r_hk'+norm(x)}).join(',');
-let s=document.createElement('script');
-s.src='https://qt.gtimg.cn/q='+q+'&_t='+Date.now();
-let done=false;
-function fin(o){if(done)return;done=true;try{document.body.removeChild(s)}catch(e){}res(o)}
-s.onload=function(){
-let o={};
-codes.forEach(function(rc){
-let code=norm(rc);
-let raw=window['v_r_hk'+code];
-if(!raw)return;
-let p=raw.split('~');
-let price=parseFloat(p[3])||0;
-let prev=parseFloat(p[4])||price;
-let open=parseFloat(p[5])||price;
-if(!price)price=prev;
-if(!price)return;
-let high=parseFloat(p[33])||price;
-let low=parseFloat(p[34])||price;
-let vol=parseFloat(p[6])||0;
-let amt=parseFloat(p[37])||0;
-let bids=[],asks=[];
-for(let i=0;i<5;i++){
-let bp=parseFloat(p[9+i])||0;
-let bv=parseFloat(p[19+i])||0;
-let ap=parseFloat(p[29+i])||0;
-let av=parseFloat(p[39+i])||0;
-if(bp>0.001&&bp<price*1.8)bids.push({price:bp,vol:bv});
-if(ap>0.001&&ap<price*1.8)asks.push({price:ap,vol:av});
-}
-if(bids.length==0){for(let i=1;i<=5;i++)bids.push({price:price-0.01*i,vol:50000+Math.random()*50000})}
-if(asks.length==0){for(let i=1;i<=5;i++)asks.push({price:price+0.01*i,vol:50000+Math.random()*50000})}
-let bSum=bids.reduce(function(a,b){return a+b.vol},0);
-let aSum=asks.reduce(function(a,b){return a+b.vol},0);
-o[code]={code:code,name:nameOf(code,p[1]),price:price,prev:prev,open:open,high:high,low:low,vol:vol,amount:amt,pct:prev?((price-prev)/prev*100):0,bids:bids,asks:asks,bSum:bSum,aSum:aSum,ratio:bSum/(aSum||1)};
-});
-fin(o);
-};
-s.onerror=function(){fin({})};
-document.body.appendChild(s);
-setTimeout(function(){fin({})},3500);
-});
-}
-
+function fetchQ(codes){return new Promise(function(res){let q=codes.map(function(x){return 'r_hk'+norm(x)}).join(',');let s=document.createElement('script');s.src='https://qt.gtimg.cn/q='+q+'&_t='+Date.now();let done=false;function fin(o){if(done)return;done=true;try{document.body.removeChild(s)}catch(e){}res(o)}s.onload=function(){let o={};codes.forEach(function(rc){let code=norm(rc);let raw=window['v_r_hk'+code];if(!raw)return;let p=raw.split('~');let price=parseFloat(p[3])||0;let prev=parseFloat(p[4])||price;let open=parseFloat(p[5])||price;if(!price)price=prev;if(!price)return;let high=parseFloat(p[33])||price;let low=parseFloat(p[34])||price;let vol=parseFloat(p[6])||0;let amt=parseFloat(p[37])||0;let bids=[],asks=[];for(let i=0;i<5;i++){let bp=parseFloat(p[9+i])||0;let bv=parseFloat(p[19+i])||0;let ap=parseFloat(p[29+i])||0;let av=parseFloat(p[39+i])||0;if(bp>0.001&&bp<price*1.5)bids.push({price:bp,vol:bv||10000});if(ap>0.001&&ap<price*1.5)asks.push({price:ap,vol:av||10000})}if(bids.length==0){for(let i=1;i<=5;i++)bids.push({price:+(price-0.01*i).toFixed(3),vol:30000})}if(asks.length==0){for(let i=1;i<=5;i++)asks.push({price:+(price+0.01*i).toFixed(3),vol:30000})}let bSum=bids.reduce(function(a,b){return a+b.vol},0);let aSum=asks.reduce(function(a,b){return a+b.vol},0);let ratio=bSum/(aSum||1);ratio=Math.max(0.1,Math.min(9.9,ratio));o[code]={code:code,name:nameOf(code,p[1]),price:price,prev:prev,open:open,high:high,low:low,vol:vol,amount:amt,pct:prev?((price-prev)/prev*100):0,bids:bids,asks:asks,bSum:bSum,aSum:aSum,ratio:ratio}});fin(o)};s.onerror=function(){fin({})};document.body.appendChild(s);setTimeout(function(){fin({})},3500)})}
 function calcPro(s){
 let range=(s.high-s.low)/s.prev*100||0;
 let vScore=s.amount>=5e8?40:s.amount>=1e8?30:s.amount>=5e7?20:s.amount>=1e7?10:2;
@@ -88,149 +33,31 @@ let bBonus=s.ratio>1.5?5:s.ratio<0.6?-5:0;
 let total=Math.max(5,Math.min(95,vScore+tScore+rScore+bBonus));
 let rating=total>=85?'💎 強力買入':total>=70?'🚀 買入':total>=50?'👀 觀望':total>=30?'⚠️ 避險':'💀 仙股警告';
 let trend=s.pct>1?'上升':s.pct<-1?'下跌':'橫行';
-let sup=(s.low*0.98).toFixed(3);
-let resi=(s.high*1.02).toFixed(3);
-let strat=total>=70?'逢低吸納':total>=50?'低吸高拋':total>=30?'反彈減磅':'觀望為主';
-let comment='京信通信 5G天線龍頭。現價 $'+s.price.toFixed(3)+' 振幅 '+range.toFixed(1)+'% 成交 '+fmtAmt(s.amount)+'。'+(s.ratio>1.2?'買盤承接。':'沽壓較重。');
+let sup=(s.low*0.98).toFixed(3);let resi=(s.high*1.02).toFixed(3);
+let strat=total>=70?'逢低吸納，突破追入':total>=50?'區間震盪，低吸高拋':total>=30?'反彈減磅，嚴守止損':'成交稀疏，不宜重倉';
+let comment=profOf(s.code)+'。現價 $'+fmtP(s.price)+' 振幅 '+range.toFixed(2)+'% 成交 '+fmtAmt(s.amount)+'。'+(s.ratio>1.3?'買盤踴躍，承接力強，':'沽壓佔優，留意回調，')+(total>=70?'留意 $'+resi+' 突破。':'短線以 '+sup+' 作止損參考。');
 return {total,rating,trend,sup,resi,strat,comment,range,vScore,tScore,rScore,bBonus}
 }
-
 async function refresh(){
 document.getElementById('watchlist-count').innerText=w.length+'/10';
 document.getElementById('last-update').innerText=new Date().toLocaleTimeString();
-let uniq=[];
-w.concat([cur]).forEach(function(c){if(uniq.indexOf(c)===-1)uniq.push(c)});
+let uniq=[];w.concat([cur]).forEach(function(c){if(uniq.indexOf(c)===-1)uniq.push(c)});
 let data=await fetchQ(uniq);
-let box=document.getElementById('stock-list');
-box.innerHTML='';
-for(let i=0;i<w.length;i++){
-let code=w[i];
-let s=data[code];
-if(!s){box.innerHTML+='<div class="card-bg p-3 rounded-xl border border-zinc-700">HK.'+code+' 載入中...</div>';continue}
-let up=s.pct>0.05,down=s.pct<-0.05;
-let bc=up?'border-emerald-500':down?'border-red-500':'border-white';
-let tc=up?'text-emerald-400':down?'text-red-400':'text-zinc-300';
-box.innerHTML+='<div class="card-bg p-3.5 rounded-xl border-2 '+bc+' flex justify-between items-center"><div onclick="pick(\''+s.code+'\')" class="flex-1"><div class="font-black text-[17px] gold-light">'+s.name+'</div><div class="text-[11px] text-zinc-400">HK.'+s.code+' 高:'+fmtP(s.high)+' 低:'+fmtP(s.low)+'</div><div class="text-[11px] text-zinc-400">成交額 <span class="text-white font-bold">'+fmtAmt(s.amount)+'</span></div></div><div class="flex gap-2 items-center"><div onclick="pick(\''+s.code+'\')" class="text-right"><div class="font-black '+tc+'">$'+fmtP(s.price)+'</div><div class="text-xs font-bold '+tc+'">'+(s.pct>0?'+':'')+s.pct.toFixed(2)+'%</div></div><button onclick="delWatch(\''+s.code+'\')" class="w-7 h-7 rounded-full bg-zinc-800">✕</button></div></div>';
-if(!ticks[s.code])ticks[s.code]=[];
-ticks[s.code].push(s.price);
-if(ticks[s.code].length>40)ticks[s.code].shift();
-detail[s.code]=s;
+let box=document.getElementById('stock-list');box.innerHTML='';
+for(let i=0;i<w.length;i++){let code=w[i];let s=data[code];if(!s){box.innerHTML+='<div class="card-bg p-3 rounded-xl border border-zinc-700">HK.'+code+' 載入中...</div>';continue}let up=s.pct>0.05,down=s.pct<-0.05;let bc=up?'border-emerald-500':down?'border-red-500':'border-white';let tc=up?'text-emerald-400':down?'text-red-400':'text-zinc-300';box.innerHTML+='<div class="card-bg p-3.5 rounded-xl border-2 '+bc+' flex justify-between items-center"><div onclick="pick(\''+s.code+'\')" class="flex-1"><div class="font-black text-[17px] gold-light">'+s.name+'</div><div class="text-[11px] text-zinc-400">HK.'+s.code+' 高:'+fmtP(s.high)+' 低:'+fmtP(s.low)+'</div><div class="text-[11px] text-zinc-400">成交額 <span class="text-white font-bold">'+fmtAmt(s.amount)+'</span></div></div><div class="flex gap-2 items-center"><div onclick="pick(\''+s.code+'\')" class="text-right"><div class="font-black '+tc+'">$'+fmtP(s.price)+'</div><div class="text-xs font-bold '+tc+'">'+(s.pct>0?'+':'')+s.pct.toFixed(2)+'%</div></div><button onclick="delWatch(\''+s.code+'\')" class="w-7 h-7 rounded-full bg-zinc-800">✕</button></div></div>';if(!ticks[s.code])ticks[s.code]=[];ticks[s.code].push(s.price);if(ticks[s.code].length>40)ticks[s.code].shift();detail[s.code]=s}
+if(data[cur]){let s=data[cur];detail[cur]=s;document.getElementById('s-name').innerText=s.name;document.getElementById('s-code').innerText='HK.'+s.code;document.getElementById('s-price').innerText='$'+fmtP(s.price);let el=document.getElementById('s-change');el.innerText=(s.pct>=0?'+':'')+s.pct.toFixed(2)+'%';el.className='text-sm font-bold '+(s.pct>0.05?'text-emerald-400':s.pct<-0.05?'text-red-400':'text-zinc-300');document.getElementById('s-amount').innerText='成交額 '+fmtAmt(s.amount)+' / '+fmtAmt(s.vol)+'股';document.getElementById('d-open').innerText='$'+fmtP(s.open);document.getElementById('d-prev').innerText='$'+fmtP(s.prev);document.getElementById('d-high').innerText='$'+fmtP(s.high);document.getElementById('d-low').innerText='$'+fmtP(s.low);document.getElementById('d-vol').innerText=fmtAmt(s.vol)+'股';document.getElementById('d-range').innerText=(((s.high-s.low)/s.prev*100)||0).toFixed(2)+'%';document.getElementById('bid-list').innerHTML=s.bids.slice(0,5).map(function(b,i){return '<div class="flex justify-between '+(i==0?'font-bold text-emerald-300':'')+'"><span>$'+fmtP(b.price)+'</span><span>'+fmtAmt(b.vol)+'</span></div>'}).join('');document.getElementById('ask-list').innerHTML=s.asks.slice(0,5).map(function(a,i){return '<div class="flex justify-between '+(i==0?'font-bold text-red-300':'')+'"><span>$'+fmtP(a.price)+'</span><span>'+fmtAmt(a.vol)+'</span></div>'}).join('');let spread=s.asks[0]&&s.bids[0]?(s.asks[0].price-s.bids[0].price).toFixed(3):'--';document.getElementById('ba-spread').innerText='差價 $'+spread;document.getElementById('ba-ratio').innerText='買賣比 '+s.ratio.toFixed(2);document.getElementById('ba-power').innerText=s.ratio>1.5?'買盤踴躍':s.ratio<0.7?'沽壓較重':'勢均力敵';let ai=calcPro(s);document.getElementById('ai-score').innerText=ai.total+' /100';document.getElementById('s-rating-badge').innerText=ai.rating;document.getElementById('ai-resist').innerText='$'+ai.resi;document.getElementById('ai-support').innerText='$'+ai.sup;document.getElementById('ai-strategy').innerText=ai.strat;document.getElementById('ai-comment').innerText=ai.comment;document.getElementById('ai-breakdown').innerText='量能'+ai.vScore+'/40 | 趨勢'+ai.tScore+'/30 | 風險'+ai.rScore+'/25 | 盤口'+ai.bBonus;drawChart()}
 }
-if(data[cur]){
-let s=data[cur];
-detail[cur]=s;
-document.getElementById('s-name').innerText=s.name;
-document.getElementById('s-code').innerText='HK.'+s.code;
-document.getElementById('s-price').innerText='$'+fmtP(s.price);
-let el=document.getElementById('s-change');
-el.innerText=(s.pct>=0?'+':'')+s.pct.toFixed(2)+'%';
-el.className='text-sm font-bold '+(s.pct>0.05?'text-emerald-400':s.pct<-0.05?'text-red-400':'text-zinc-300');
-document.getElementById('s-amount').innerText='成交額 '+fmtAmt(s.amount);
-document.getElementById('d-open').innerText='$'+fmtP(s.open);
-document.getElementById('d-prev').innerText='$'+fmtP(s.prev);
-document.getElementById('d-high').innerText='$'+fmtP(s.high);
-document.getElementById('d-low').innerText='$'+fmtP(s.low);
-document.getElementById('d-vol').innerText=fmtAmt(s.vol)+'股';
-document.getElementById('d-range').innerText=(((s.high-s.low)/s.prev*100)||0).toFixed(2)+'%';
-document.getElementById('bid-list').innerHTML=s.bids.slice(0,5).map(function(b,i){return '<div class="flex justify-between '+(i==0?'font-bold text-emerald-300':'')+'"><span>$'+fmtP(b.price)+'</span><span>'+fmtAmt(b.vol)+'</span></div>'}).join('');
-document.getElementById('ask-list').innerHTML=s.asks.slice(0,5).map(function(a,i){return '<div class="flex justify-between '+(i==0?'font-bold text-red-300':'')+'"><span>$'+fmtP(a.price)+'</span><span>'+fmtAmt(a.vol)+'</span></div>'}).join('');
-let spread=s.asks[0]&&s.bids[0]?(s.asks[0].price-s.bids[0].price).toFixed(3):'--';
-document.getElementById('ba-spread').innerText='差價 $'+spread;
-document.getElementById('ba-ratio').innerText='買賣比 '+s.ratio.toFixed(2);
-document.getElementById('ba-power').innerText=s.ratio>1.5?'買盤踴躍':s.ratio<0.7?'沽壓較重':'勢均力敵';
-let ai=calcPro(s);
-document.getElementById('ai-score').innerText=ai.total+' /100';
-document.getElementById('s-rating-badge').innerText=ai.rating;
-document.getElementById('ai-resist').innerText='$'+ai.resi;
-document.getElementById('ai-support').innerText='$'+ai.sup;
-document.getElementById('ai-strategy').innerText=ai.strat;
-document.getElementById('ai-comment').innerText=ai.comment;
-document.getElementById('ai-breakdown').innerText='量能'+ai.vScore+'/40 | 趨勢'+ai.tScore+'/30 | 風險'+ai.rScore+'/25 | 盤口'+ai.bBonus;
-drawChart();
-}
-}
-
-function drawChart(){
-let prices=ticks[cur]||[];
-if(prices.length<2)return;
-let cv=document.getElementById('priceChart');
-if(!cv)return;
-let ctx=cv.getContext('2d');
-if(chart)chart.destroy();
-let labels=prices.map(function(_,i){
-let d=new Date();
-d.setSeconds(d.getSeconds()-(prices.length-i)*8);
-return d.toTimeString().slice(0,5);
-});
-let s=detail[cur];
-let up=s&&s.pct>=0;
-let col=up?'#10b981':'#ef4444';
-let bg=up?'rgba(16,185,129,0.35)':'rgba(239,68,68,0.35)';
-chart=new Chart(ctx,{
-type:'line',
-data:{
-labels:labels,
-datasets:[{
-data:prices,
-borderColor:col,
-backgroundColor:bg,
-borderWidth:2,
-fill:true,
-tension:0.35,
-pointRadius:0
-}]
-},
-options:{
-responsive:true,
-maintainAspectRatio:false,
-plugins:{legend:{display:false}},
-scales:{
-x:{grid:{display:false},ticks:{color:'#71717a',font:{size:9},maxTicksLimit:4}},
-y:{position:'right',grid:{color:'#27272a'},ticks:{color:'#a1a1aa',font:{size:10}}}
-}
-}
-});
-}
-
-function pick(c){cur=norm(c);switchTab(2);refresh()}
-function switchTab(n){
-document.getElementById('tab1-wrap').classList.toggle('hidden',n==2);
-document.getElementById('tab2-content').classList.toggle('hidden',n!=2);
-document.getElementById('tab1-btn').className=n==1?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400";
-document.getElementById('tab2-btn').className=n==2?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400";
-}
-async function loadHot(){
-try{
-let r=await fetch('https://wingyuen28-cyber.github.io/moonbus-stock-Ai/hot_stocks.json?t='+Date.now(),{cache:'no-store'});
-let j=await r.json();
-hot=j.data||[];
-document.getElementById('hot-count').innerText=hot.length;
-let box=document.getElementById('hot-list');
-box.innerHTML=hot.map(function(s){
-return '<div onclick="pick(\''+s.code+'\')" class="min-w-[140px] card-bg p-3 rounded-xl border border-zinc-800"><div class="font-black text-[13px] gold-light">'+nameOf(s.code,s.name)+'</div><div class="text-[10px] text-zinc-500">HK.'+s.code+'</div><div class="mt-1 font-bold '+(s.change_pct>=0?'text-emerald-400':'text-red-400')+'">'+(s.change_pct>0?'+':'')+s.change_pct+'%</div></div>';
-}).join('');
-}catch(e){}
-}
+function drawChart(){let prices=ticks[cur]||[];if(prices.length<2)return;let cv=document.getElementById('priceChart');if(!cv)return;let ctx=cv.getContext('2d');if(chart)chart.destroy();let labels=prices.map(function(_,i){let d=new Date();d.setSeconds(d.getSeconds()-(prices.length-i)*8);return d.toTimeString().slice(0,5)});let s=detail[cur];let up=s&&s.pct>=0;let col=up?'#10b981':'#ef4444';let bg=up?'rgba(16,185,129,0.35)':'rgba(239,68,68,0.35)';chart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{data:prices,borderColor:col,backgroundColor:bg,borderWidth:2,fill:true,tension:0.35,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#71717a',font:{size:9},maxTicksLimit:4}},y:{position:'right',grid:{color:'#27272a'},ticks:{color:'#a1a1aa',font:{size:10}}}}})}
+function pick(c){cur=norm(c);ticks[cur]=[];switchTab(2);refresh()}
+function switchTab(n){document.getElementById('tab1-wrap').classList.toggle('hidden',n==2);document.getElementById('tab2-content').classList.toggle('hidden',n!=2);document.getElementById('tab1-btn').className=n==1?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400";document.getElementById('tab2-btn').className=n==2?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400"}
+async function loadHot(){try{let r=await fetch('https://wingyuen28-cyber.github.io/moonbus-stock-Ai/hot_stocks.json?t='+Date.now(),{cache:'no-store'});let j=await r.json();let hot=j.data||[];document.getElementById('hot-count').innerText=hot.length;let box=document.getElementById('hot-list');box.innerHTML=hot.map(function(s){return '<div onclick="pick(\''+s.code+'\')" class="min-w-[140px] card-bg p-3 rounded-xl border border-zinc-800"><div class="font-black text-[13px] gold-light">'+nameOf(s.code,s.name)+'</div><div class="text-[10px] text-zinc-500">HK.'+s.code+'</div><div class="mt-1 font-bold '+(s.change_pct>=0?'text-emerald-400':'text-red-400')+'">'+(s.change_pct>0?'+':'')+s.change_pct+'%</div></div>'}).join('')}catch(e){}}
 function init(){loadHot();refresh();setInterval(refresh,8000)}
 if(document.readyState=='loading'){document.addEventListener('DOMContentLoaded',init)}else{init()}
 </script>
-
-<header class="sticky top-0 z-40 bg-[#0D1117]/95 backdrop-blur px-4 py-3 border-b border-zinc-800"><div class="flex justify-between items-center max-w-md mx-auto"><h1 class="font-black flex items-center gap-2 text-[13px]"><img src="icon-512.png" class="w-7 h-7 rounded-lg"><span class="gold">MOONBUS 股票精選 AI</span><span class="text-[9px] px-1.5 py-0.5 rounded bg-white text-black">V5.5</span></h1><div class="text-[10px] text-emerald-400">● 即時</div></div></header>
-
+<header class="sticky top-0 z-40 bg-[#0D1117]/95 backdrop-blur px-4 py-3 border-b border-zinc-800"><div class="flex justify-between items-center max-w-md mx-auto"><h1 class="font-black flex items-center gap-2 text-[13px]"><img src="icon-512.png" class="w-7 h-7 rounded-lg"><span class="gold">MOONBUS 股票精選 AI</span><span class="text-[9px] px-1.5 py-0.5 rounded bg-white text-black">V5.6</span></h1><div class="text-[10px] text-emerald-400">● 即時</div></div></header>
 <main class="max-w-md mx-auto px-4 mt-3 space-y-4">
-<section id="tab1-wrap" class="space-y-3">
-<div class="flex justify-between items-center"><span class="text-[15px] font-black gold">⭐ 自選監測 <span id="watchlist-count" class="text-indigo-300 font-mono ml-1">--</span></span><span class="flex gap-2 items-center"><span id="last-update" class="text-[10px] text-zinc-500">--:--:--</span><button onclick="localStorage.setItem('mb_watch_v33',JSON.stringify(DEFAULT_WATCH));location.reload();" class="text-[10px] bg-yellow-400 text-black px-2.5 py-1 rounded-full font-black">重設8隻</button></span></div>
-<div class="card-bg p-2.5 rounded-xl flex gap-2 border border-zinc-800"><input id="add-input" inputmode="numeric" placeholder="輸入代號 如 02342" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none"><button onclick="addWatch()" class="bg-[#FACC15] text-black font-black px-5 rounded-lg text-sm">加入</button></div>
-<div id="stock-list" class="space-y-3 text-xs text-zinc-500">載入中...</div>
-<div class="space-y-2 pt-1"><div class="flex justify-between items-center"><span class="text-[14px] font-black gold">📊 異動掃描 <span id="hot-count" class="text-yellow-400 font-mono ml-1">--</span></span></div><div id="hot-list" class="flex gap-2 overflow-x-auto no-scrollbar pb-2 text-xs"></div></div>
-</section>
-
-<section id="tab2-content" class="hidden space-y-3">
-<div class="card-bg p-4 rounded-xl border border-zinc-800"><div class="flex justify-between"><div><h2 id="s-name" class="font-black text-[18px] gold-light">京信通信</h2><div id="s-code" class="text-xs text-zinc-500">HK.02342</div><div class="flex gap-2 mt-2"><span id="s-rating-badge" class="text-[10px] px-2 py-1 rounded-full bg-zinc-800">--</span></div></div><div class="text-right"><div id="s-price" class="text-[26px] font-black">$--</div><div id="s-change" class="text-sm font-bold">--</div><div id="s-amount" class="text-[10px] text-zinc-400 mt-1">--</div></div></div><div class="h-[190px] mt-4"><canvas id="priceChart"></canvas></div><div class="grid grid-cols-3 gap-2 mt-4 text-[11px]"><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">今開</div><div id="d-open" class="font-bold">--</div></div><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">昨收</div><div id="d-prev" class="font-bold">--</div></div><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">振幅</div><div id="d-range" class="font-bold">--</div></div><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">最高</div><div id="d-high" class="font-bold text-emerald-400">--</div></div><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">最低</div><div id="d-low" class="font-bold text-red-400">--</div></div><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">成交量</div><div id="d-vol" class="font-bold">--</div></div></div></div>
-<div class="card-bg p-4 rounded-xl border border-zinc-800"><div class="text-[13px] font-black gold mb-2">📊 買賣盤口 5檔</div><div class="grid grid-cols-2 gap-3 text-[11px] font-mono"><div><div class="text-emerald-400 font-bold mb-1 flex justify-between"><span>買盤</span><span>數量</span></div><div id="bid-list" class="space-y-1"></div></div><div><div class="text-red-400 font-bold mb-1 flex justify-between"><span>沽盤</span><span>數量</span></div><div id="ask-list" class="space-y-1"></div></div></div><div class="mt-3 p-2 bg-zinc-900 rounded-lg text-[11px] flex justify-between border border-zinc-800"><span id="ba-spread">差價 --</span><span id="ba-ratio">買賣比 --</span><span id="ba-power">--</span></div></div>
-<div class="card-bg p-4 rounded-xl border border-amber-500/20"><div class="flex justify-between"><span class="text-[13px] font-black gold">🤖 AI 深度診斷 PRO</span><span id="ai-score" class="text-[11px] px-2 py-1 rounded bg-yellow-400 text-black font-black">-- /100</span></div><div class="mt-3 space-y-2 text-[12px] leading-6"><div class="flex justify-between"><span class="text-zinc-500">壓力</span><span id="ai-resist" class="font-mono font-bold">--</span></div><div class="flex justify-between"><span class="text-zinc-500">支撐</span><span id="ai-support" class="font-mono font-bold">--</span></div><div class="flex justify-between"><span class="text-zinc-500">策略</span><span id="ai-strategy" class="font-bold gold-light">--</span></div><div class="pt-2 border-t border-zinc-800" id="ai-comment">--</div><div class="text-[10px] text-zinc-500" id="ai-breakdown">--</div></div></div>
-</section>
-
+<section id="tab1-wrap" class="space-y-3"><div class="flex justify-between items-center"><span class="text-[15px] font-black gold">⭐ 自選監測 <span id="watchlist-count" class="text-indigo-300 font-mono ml-1">--</span></span><span class="flex gap-2 items-center"><span id="last-update" class="text-[10px] text-zinc-500">--:--:--</span><button onclick="localStorage.setItem('mb_watch_v33',JSON.stringify(DEFAULT_WATCH));location.reload();" class="text-[10px] bg-yellow-400 text-black px-2.5 py-1 rounded-full font-black">重設8隻</button></span></div><div class="card-bg p-2.5 rounded-xl flex gap-2 border border-zinc-800"><input id="add-input" inputmode="numeric" placeholder="輸入代號 如 02342" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none"><button onclick="addWatch()" class="bg-[#FACC15] text-black font-black px-5 rounded-lg text-sm">加入</button></div><div id="stock-list" class="space-y-3 text-xs text-zinc-500">載入中...</div><div class="space-y-2 pt-1"><div class="flex justify-between items-center"><span class="text-[14px] font-black gold">📊 異動掃描 <span id="hot-count" class="text-yellow-400 font-mono ml-1">--</span></span></div><div id="hot-list" class="flex gap-2 overflow-x-auto no-scrollbar pb-2 text-xs"></div></div></section>
+<section id="tab2-content" class="hidden space-y-3"><div class="card-bg p-4 rounded-xl border border-zinc-800"><div class="flex justify-between"><div><h2 id="s-name" class="font-black text-[18px] gold-light">--</h2><div id="s-code" class="text-xs text-zinc-500">HK.-----</div><div class="flex gap-2 mt-2"><span id="s-rating-badge" class="text-[10px] px-2 py-1 rounded-full bg-zinc-800">--</span></div></div><div class="text-right"><div id="s-price" class="text-[26px] font-black">$--</div><div id="s-change" class="text-sm font-bold">--</div><div id="s-amount" class="text-[10px] text-zinc-400 mt-1">--</div></div></div><div class="h-[190px] mt-4"><canvas id="priceChart"></canvas></div><div class="grid grid-cols-3 gap-2 mt-4 text-[11px]"><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">今開</div><div id="d-open" class="font-bold">--</div></div><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">昨收</div><div id="d-prev" class="font-bold">--</div></div><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">振幅</div><div id="d-range" class="font-bold">--</div></div><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">最高</div><div id="d-high" class="font-bold text-emerald-400">--</div></div><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">最低</div><div id="d-low" class="font-bold text-red-400">--</div></div><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">成交量</div><div id="d-vol" class="font-bold">--</div></div></div></div><div class="card-bg p-4 rounded-xl border border-zinc-800"><div class="text-[13px] font-black gold mb-2">📊 買賣盤口 5檔</div><div class="grid grid-cols-2 gap-3 text-[11px] font-mono"><div><div class="text-emerald-400 font-bold mb-1 flex justify-between"><span>買盤</span><span>數量</span></div><div id="bid-list" class="space-y-1"></div></div><div><div class="text-red-400 font-bold mb-1 flex justify-between"><span>沽盤</span><span>數量</span></div><div id="ask-list" class="space-y-1"></div></div></div><div class="mt-3 p-2 bg-zinc-900 rounded-lg text-[11px] flex justify-between border border-zinc-800"><span id="ba-spread">差價 --</span><span id="ba-ratio">買賣比 --</span><span id="ba-power">--</span></div></div><div class="card-bg p-4 rounded-xl border border-amber-500/20"><div class="flex justify-between"><span class="text-[13px] font-black gold">🤖 AI 深度診斷 PRO</span><span id="ai-score" class="text-[11px] px-2 py-1 rounded bg-yellow-400 text-black font-black">-- /100</span></div><div class="mt-3 space-y-2 text-[12px] leading-6"><div class="flex justify-between"><span class="text-zinc-500">壓力</span><span id="ai-resist" class="font-mono font-bold">--</span></div><div class="flex justify-between"><span class="text-zinc-500">支撐</span><span id="ai-support" class="font-mono font-bold">--</span></div><div class="flex justify-between"><span class="text-zinc-500">策略</span><span id="ai-strategy" class="font-bold gold-light">--</span></div><div class="pt-2 border-t border-zinc-800" id="ai-comment">--</div><div class="text-[10px] text-zinc-500" id="ai-breakdown">--</div></div></div></section>
 <div class="flex bg-zinc-900 p-1 border border-zinc-800 rounded-xl fixed bottom-4 left-4 right-4 max-w-md mx-auto z-30"><button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black">自選</button><button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2.5 text-sm rounded-lg text-zinc-400">深度分析</button></div>
 </main>
 </body>
