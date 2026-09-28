@@ -1,5 +1,5 @@
 {
-  "update_time": "2026-09-28 07:41:05",
+  "update_time": "2026-09-28 07:50:20",
   "count": 7,
   "data": [
     {
@@ -7,8 +7,8 @@
       "name": "航標控股",
       "category": "港股主板",
       "change_pct": -4.85,
-      "vol_ratio": 0.7,
-      "reason": "-4.85%波動 | 量比0.657x",
+      "vol_ratio": 4.8,
+      "reason": "急跌 4.85% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
@@ -16,8 +16,8 @@
       "name": "中芯國際",
       "category": "港股主板",
       "change_pct": -3.63,
-      "vol_ratio": 49.3,
-      "reason": "-3.63%波動 | 量比49.32x",
+      "vol_ratio": 3.4,
+      "reason": "急跌 3.63% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
@@ -25,17 +25,17 @@
       "name": "MS CONCEPT",
       "category": "創業板 (GEM)",
       "change_pct": -1.35,
-      "vol_ratio": 0.0,
-      "reason": "-1.35%波動 | 量比0.033x",
+      "vol_ratio": 0.6,
+      "reason": "急跌 1.35% | 振幅擴大 | 資金關注",
       "is_gem": true
     },
     {
       "code": "00700",
       "name": "騰訊控股",
       "category": "港股主板",
-      "change_pct": 0.87,
-      "vol_ratio": 411.0,
-      "reason": "0.87%波動 | 量比411.0x",
+      "change_pct": 0.92,
+      "vol_ratio": 2.1,
+      "reason": "急升 0.92% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
@@ -43,8 +43,8 @@
       "name": "盈富基金",
       "category": "ETF",
       "change_pct": 0.64,
-      "vol_ratio": 22.9,
-      "reason": "0.64%波動 | 量比22.92x",
+      "vol_ratio": 1.8,
+      "reason": "急升 0.64% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
@@ -52,8 +52,8 @@
       "name": "比亞迪股份",
       "category": "港股主板",
       "change_pct": -0.58,
-      "vol_ratio": 71.4,
-      "reason": "-0.58%波動 | 量比71.4x",
+      "vol_ratio": 0.3,
+      "reason": "急跌 0.58% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
@@ -61,8 +61,8 @@
       "name": "美團-W",
       "category": "港股主板",
       "change_pct": 0.56,
-      "vol_ratio": 63.6,
-      "reason": "0.56%波動 | 量比63.65x",
+      "vol_ratio": 1.7,
+      "reason": "急升 0.56% | 振幅擴大 | 資金關注",
       "is_gem": false
     }
   ]
