@@ -3,23 +3,38 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 1,4,7 * * 1-5'
+
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-python@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - run: pip install requests
-      - run: python generate_stocks.py
-      - run: |
-          git config user.name "bot"
-          git config user.email "bot@github.com"
-          git add stocks.json hot_stocks.json
-          git commit -m "auto update" || echo "no change"
-          git push
+
+      - name: Install
+        run: pip install requests
+
+      - name: Run
+        run: python generate_stocks.py
+
+      - name: Commit and Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "auto update hot stocks"
+            git push
+          fi
