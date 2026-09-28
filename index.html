@@ -1,112 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MoonBus Stock Select AI</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>body{background:#0D1117;color:#E6EDF3}.card-bg{background:#161B22;border:1px solid #30363D}.hot-gem{border-color:#8B5CF6!important;box-shadow:0 0 12px rgba(139,92,246,.3)}.hot-main{border-color:#EAB308!important;box-shadow:0 0 12px rgba(234,179,8,.25)}</style>
-</head>
-<body class="pb-10">
-<header class="sticky top-0 z-50 card-bg px-4 py-3">
-<div class="flex justify-between items-center max-w-md mx-auto">
-<h1 class="font-bold text-white tracking-wide">MOONBUS <span class="text-yellow-400">STOCK SELECT AI</span> <span class="text-[10px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 ml-1">V3.0 PRO</span></h1>
-<div class="text-xs flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span> 實時行情</div>
-</div>
-<div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-zinc-800 text-xs text-zinc-400"><div>自選監測:<span id="watchlist-count" class="text-indigo-400 font-bold ml-1">--</span></div><div>異動掃描:<span id="hot-count" class="text-yellow-400 font-bold ml-1">--</span></div><div id="last-update">--:--:--</div></div>
-</header>
-
-<main class="max-w-md mx-auto px-4 mt-4 space-y-4">
-<section class="card-bg p-3 rounded-xl">
-<div class="flex justify-between items-center"><span class="text-yellow-400 font-bold text-sm tracking-wider">📊 全市場異動掃描</span><button onclick="loadHot()" class="text-[11px] text-zinc-400 hover:text-yellow-400 underline">刷新</button></div>
-<div id="hot-list" class="space-y-2 mt-3 text-xs text-center py-2 text-zinc-500">正在掃描全市場...</div>
-</section>
-
-<div class="flex rounded-lg bg-zinc-900 p-1 border border-zinc-800">
-<button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 text-sm rounded-md bg-white text-black font-bold">自選監測</button>
-<button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2 text-sm rounded-md text-zinc-400">深度分析</button>
-</div>
-
-<section id="tab1-content" class="space-y-3">
-<div class="card-bg p-3 rounded-xl"><div class="flex space-x-2"><input id="add-input" placeholder="輸入代號 如 00700, 08447" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"><button onclick="addWatch()" class="bg-white text-black font-bold px-4 rounded-lg text-sm">加入</button></div></div>
-<div id="stock-list" class="space-y-2"></div>
-</section>
-
-<section id="tab2-content" class="space-y-4 hidden">
-<div class="card-bg p-3 rounded-xl flex space-x-2"><input id="search-input" value="00700" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"><button onclick="doSearch()" class="bg-white text-black font-bold px-4 rounded-lg text-sm">分析</button></div>
-<div class="card-bg p-4 rounded-xl">
-<div class="flex justify-between"><div><h2 id="s-name" class="font-bold text-base">---</h2><div id="s-code" class="text-xs text-zinc-400">HK.-----</div></div><div class="text-right"><div id="s-price" class="text-2xl font-black">$0.000</div><div id="s-change" class="text-xs font-bold">0.00%</div></div></div>
-<div class="h-32 mt-3"><canvas id="priceChart"></canvas></div>
-<div class="h-24 mt-2"><canvas id="volChart"></canvas></div>
-<div class="grid grid-cols-4 gap-2 pt-3 mt-3 border-t border-zinc-800 text-center text-[11px] text-zinc-500"><div>昨收<br><span id="s-prev" class="text-white font-bold">--</span></div><div>今開<br><span id="s-open" class="text-white font-bold">--</span></div><div>日高<br><span id="s-high" class="text-white font-bold">--</span></div><div>日低<br><span id="s-low" class="text-white font-bold">--</span></div></div>
-</div>
-</section>
-</main>
-
-<script>
-function switchTab(n){
- document.getElementById('tab1-content').classList.toggle('hidden', n!==1);
- document.getElementById('tab2-content').classList.toggle('hidden', n!==2);
- document.getElementById('tab1-btn').className = n===1? "flex-1 py-2 text-sm rounded-md bg-white text-black font-bold" : "flex-1 py-2 text-sm rounded-md text-zinc-400";
- document.getElementById('tab2-btn').className = n===2? "flex-1 py-2 text-sm rounded-md bg-white text-black font-bold" : "flex-1 py-2 text-sm rounded-md text-zinc-400";
-}
-let watchListCodes = JSON.parse(localStorage.getItem('mb_watch_v30')||'["00700","09988","03690","08447","02342","00981","02800","01211"]');
-let currentCode='00700', priceChart=null, volChart=null, tickStore={};
-function normalizeCode(c){return String(c).replace(/\D/g,'').padStart(5,'0');}
-function formatP(v){return isNaN(v)?'--':Number(v).toFixed(3);}
-function addWatch(){let c=normalizeCode(document.getElementById('add-input').value); if(!c) return; if(watchListCodes.includes(c)) return alert('已在自選'); if(watchListCodes.length>=10) return alert('最多10隻'); watchListCodes.push(c); localStorage.setItem('mb_watch_v30',JSON.stringify(watchListCodes)); document.getElementById('add-input').value=''; refreshAll();}
-function removeWatch(e,code){e.stopPropagation(); watchListCodes=watchListCodes.filter(x=>x!==code); localStorage.setItem('mb_watch_v30',JSON.stringify(watchListCodes)); refreshAll();}
-function fetchQuotes(codes){
- return new Promise(res=>{
-  let id='qt'; let old=document.getElementById(id); if(old) old.remove();
-  let q=codes.map(x=>'r_hk'+normalizeCode(x)).join(',');
-  let s=document.createElement('script'); s.id=id; s.src='https://qt.gtimg.cn/q='+q+'&_t='+Date.now();
-  s.onload=()=>{let out={}; codes.forEach(rc=>{let code=normalizeCode(rc); let raw=window['v_r_hk'+code]; if(!raw) return; let p=raw.split('~'); let price=parseFloat(p[3])||0, prev=parseFloat(p[4])||0, open=parseFloat(p[5])||0, high=parseFloat(p[33])||price, low=parseFloat(p[34])||price; if(price===0) return; let pct=prev?((price-prev)/prev*100):0; let outer=parseFloat(p[7])||0, inner=parseFloat(p[8])||0, tot=outer+inner, buy=50; if(tot>0) buy=Math.round(outer/tot*100); let vol=parseFloat(p[49])||1; out[code]={code,name:p[1]||code,price,prev,open,high,low,pct,buyPct:buy,vol}; }); res(out);};
-  s.onerror=()=>res({}); document.body.appendChild(s);
- });
-}
-async function loadHot(){
- let urls=['hot_stocks.json','www/hot_stocks.json']; let data=null;
- for(let u of urls){try{let r=await fetch(u+'?t='+Date.now()); if(r.ok){data=await r.json(); if(data) break;}}catch(e){}}
- let box=document.getElementById('hot-list'), countEl=document.getElementById('hot-count');
- if(!data||!data.data||data.data.length===0){box.innerHTML='<div class="text-zinc-500">市場平穩，暫無顯著異動</div>'; if(countEl) countEl.innerText='0'; return;}
- if(countEl) countEl.innerText=data.data.length; box.innerHTML='';
- data.data.forEach(s=>{
-  let isUp=s.change_pct>=0; let isGem=s.is_gem||(s.category&&s.category.includes('創業板'));
-  let border=isGem?'hot-gem':'hot-main';
-  let tag=isGem?'<span class="text-[10px] px-2 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-800 ml-1">GEM 板塊</span>':'<span class="text-[10px] px-2 py-0.5 rounded bg-yellow-900/30 text-yellow-400 border border-yellow-800 ml-1">主板異動</span>';
-  let reasonPro = isGem? `跌幅 ${s.change_pct}% | 創業板波動` : `波動 ${s.change_pct}% | 資金關注度提升`;
-  if(s.reason) reasonPro = s.reason.replace('波動','振幅').replace('量比','成交');
-  box.innerHTML+=`<div onclick="selectStock('${s.code}')" class="card-bg p-3 rounded-xl border ${border} cursor-pointer text-left hover:bg-zinc-900 transition"><div class="flex justify-between items-center"><span class="font-bold text-white text-[13px]">${s.name} <span class="text-zinc-400 text-xs font-normal">HK.${s.code}</span>${tag}</span><span class="${isUp?'text-emerald-400':'text-red-400'} font-black text-sm">${isUp?'▲':'▼'}${s.change_pct}%</span></div><div class="text-[11px] text-zinc-400 mt-1.5 font-mono">${reasonPro}</div></div>`;
- });
-}
-async function refreshAll(){
- document.getElementById('watchlist-count').innerText=watchListCodes.length+'/10';
- let all=[...new Set([...watchListCodes, currentCode])]; let data=await fetchQuotes(all);
- document.getElementById('last-update').innerText=new Date().toLocaleTimeString();
- let cont=document.getElementById('stock-list'); cont.innerHTML='';
- watchListCodes.forEach(code=>{
-  let s=data[code]; if(!s) return; let up=s.pct>=0;
-  cont.innerHTML+=`<div onclick="selectStock('${s.code}')" class="card-bg p-3 rounded-xl cursor-pointer flex justify-between items-center hover:bg-zinc-900 transition"><div><div class="font-bold text-white text-sm">${s.name} <span class="text-xs text-zinc-400 font-normal">HK.${s.code}</span></div><div class="text-xs text-zinc-500 mt-1 font-mono">買盤 ${s.buyPct}% | 資金 ${up?'流入':'流出'}</div></div><div class="text-right"><div class="font-black ${up?'text-emerald-400':'text-red-400'}">$${formatP(s.price)}</div><div class="text-xs ${up?'text-emerald-400':'text-red-400'} font-mono">${s.pct>=0?'+':''}${s.pct.toFixed(2)}%</div><button onclick="removeWatch(event,'${s.code}')" class="text-[10px] text-zinc-600 underline mt-1">移除</button></div></div>`;
-  if(!tickStore[s.code]) tickStore[s.code]=[]; tickStore[s.code].push({price:s.price}); if(tickStore[s.code].length>30) tickStore[s.code].shift();
- });
- if(data[currentCode]) updateDetail(data[currentCode]);
-}
-function updateDetail(s){
- document.getElementById('s-name').innerText=s.name; document.getElementById('s-code').innerText='HK.'+s.code; document.getElementById('s-price').innerText='$'+formatP(s.price); document.getElementById('s-change').innerText=(s.pct>=0?'+':'')+s.pct.toFixed(2)+'%'; document.getElementById('s-change').className=s.pct>=0?'text-xs font-bold text-emerald-400':'text-xs font-bold text-red-400';
- document.getElementById('s-prev').innerText=formatP(s.prev); document.getElementById('s-open').innerText=formatP(s.open); document.getElementById('s-high').innerText=formatP(s.high); document.getElementById('s-low').innerText=formatP(s.low);
- let hist=tickStore[s.code]||[{price:s.price}]; renderCharts(hist,s.pct>=0);
-}
-function renderCharts(hist,isUp){
- let labels=hist.map((_,i)=>i); let prices=hist.map(h=>h.price);
- let ctx=document.getElementById('priceChart').getContext('2d'); if(priceChart) priceChart.destroy();
- priceChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{data:prices,borderColor:isUp?'#10B981':'#EF4444',backgroundColor:isUp?'rgba(16,185,129,0.1)':'rgba(239,68,68,0.1)',fill:true,tension:0.4,pointRadius:0,borderWidth:2}]},options:{plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}},responsive:true,maintainAspectRatio:false}});
- let ctx2=document.getElementById('volChart').getContext('2d'); if(volChart) volChart.destroy();
- volChart=new Chart(ctx2,{type:'bar',data:{labels:labels,datasets:[{data:prices.map(()=>Math.random()*100),backgroundColor:'#27272A'}]},options:{plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}},responsive:true,maintainAspectRatio:false}});
-}
-async function selectStock(c){currentCode=normalizeCode(c); let d=await fetchQuotes([currentCode]); if(d[currentCode]){updateDetail(d[currentCode]); switchTab(2);} }
-function doSearch(){let v=document.getElementById('search-input').value; if(v) selectStock(v);}
-window.onload=async()=>{await loadHot(); await refreshAll(); setInterval(refreshAll,8000);};
-</script>
-</body>
-</html>
+<html lang="zh-HK"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>MoonBus Stock Select AI</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><style>body{background:#0D1117;color:#E6EDF3}.card-bg{background:#161B22;border:1px solid #30363D}.hot-gem{border-color:#8B5CF6!important}.hot-main{border-color:#EAB308!important}</style></head><body><header class="sticky top-0 z-50 card-bg px-4 py-3"><div class="flex justify-between items-center max-w-md mx-auto"><h1 class="font-bold">MOONBUS <span class="text-yellow-400">STOCK SELECT AI</span> <span class="text-[10px] px-2 bg-zinc-800 rounded ml-1">V3.2 PRO</span></h1><div class="text-xs">● 實時行情</div></div><div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-zinc-800 text-xs text-zinc-400"><div>自選監測:<span id="watchlist-count" class="text-indigo-400 font-bold ml-1">--</span></div><div>異動掃描:<span id="hot-count" class="text-yellow-400 font-bold ml-1">--</span></div><div id="last-update">--:--:--</div></div></header><main class="max-w-md mx-auto px-4 mt-4 space-y-4"><section class="card-bg p-3 rounded-xl"><div class="flex justify-between"><span class="text-yellow-400 font-bold text-sm">📊 全市場異動掃描</span><button onclick="loadHot()" class="text-[11px] underline">刷新</button></div><div id="hot-list" class="space-y-2 mt-3 text-xs text-center py-2">掃描中...</div></section><div class="flex bg-zinc-900 p-1 border border-zinc-800 rounded-lg"><button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 text-sm rounded bg-white text-black font-bold">自選監測</button><button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2 text-sm text-zinc-400">深度分析</button></div><section id="tab1-content" class="space-y-3"><div class="card-bg p-3 rounded-xl"><div class="flex space-x-2"><input id="add-input" placeholder="如 00700" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"><button onclick="addWatch()" class="bg-white text-black font-bold px-4 rounded-lg text-sm">加入</button></div></div><div id="stock-list"></div></section><section id="tab2-content" class="hidden space-y-4"><div class="card-bg p-3 rounded-xl flex space-x-2"><input id="search-input" value="00700" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"><button onclick="doSearch()" class="bg-white text-black font-bold px-4 rounded-lg text-sm">分析</button></div><div class="card-bg p-4 rounded-xl"><div class="flex justify-between"><div><h2 id="s-name" class="font-bold">---</h2><div id="s-code" class="text-xs text-zinc-400">HK.-----</div></div><div class="text-right"><div id="s-price" class="text-2xl font-black">$0.000</div><div id="s-change" class="text-xs font-bold">0.00%</div></div></div><div class="h-32 mt-3"><canvas id="priceChart"></canvas></div><div class="h-24 mt-2"><canvas id="volChart"></canvas></div><div class="grid grid-cols-4 gap-2 pt-3 mt-3 border-t border-zinc-800 text-center text-[11px] text-zinc-500"><div>昨收<br><span id="s-prev" class="text-white font-bold">--</span></div><div>今開<br><span id="s-open" class="text-white font-bold">--</span></div><div>日高<br><span id="s-high" class="text-white font-bold">--</span></div><div>日低<br><span id="s-low" class="text-white font-bold">--</span></div></div></div></section></main><script>
+function switchTab(n){document.getElementById('tab1-content').classList.toggle('hidden',n!==1);document.getElementById('tab2-content').classList.toggle('hidden',n!==2);document.getElementById('tab1-btn').className=n===1?"flex-1 py-2 text-sm rounded bg-white text-black font-bold":"flex-1 py-2 text-sm text-zinc-400";document.getElementById('tab2-btn').className=n===2?"flex-1 py-2 text-sm rounded bg-white text-black font-bold":"flex-1 py-2 text-sm text-zinc-400";}
+let watchListCodes=JSON.parse(localStorage.getItem('mb_watch_v32')||'["00700","09988","03690","08447","02342","00981","02800","01211"]');let currentCode='00700',priceChart=null,volChart=null,tickStore={};
+function normalizeCode(c){return String(c).replace(/\D/g,'').padStart(5,'0');}function formatP(v){return isNaN(v)?'--':Number(v).toFixed(3);}
+function addWatch(){let c=normalizeCode(document.getElementById('add-input').value);if(!c)return;if(watchListCodes.includes(c))return alert('已在自選');watchListCodes.push(c);localStorage.setItem('mb_watch_v32',JSON.stringify(watchListCodes));document.getElementById('add-input').value='';refreshAll();}
+function removeWatch(e,code){e.stopPropagation();watchListCodes=watchListCodes.filter(x=>x!==code);localStorage.setItem('mb_watch_v32',JSON.stringify(watchListCodes));refreshAll();}
+function fetchQuotes(codes){return new Promise(res=>{let id='qt';let old=document.getElementById(id);if(old)old.remove();let q=codes.map(x=>'r_hk'+normalizeCode(x)).join(',');let s=document.createElement('script');s.id=id;s.src='https://qt.gtimg.cn/q='+q+'&_t='+Date.now();s.onload=()=>{let out={};codes.forEach(rc=>{let code=normalizeCode(rc);let raw=window['v_r_hk'+code];if(!raw)return;let p=raw.split('~');let price=parseFloat(p[3])||0,prev=parseFloat(p[4])||0,open=parseFloat(p[5])||0,high=parseFloat(p[33])||price,low=parseFloat(p[34])||price;if(price==0)return;let pct=prev?((price-prev)/prev*100):0;let outer=parseFloat(p[7])||0,inner=parseFloat(p[8])||0,tot=outer+inner,buy=50;if(tot>0)buy=Math.round(outer/tot*100);let vol=parseFloat(p[49])||1;out[code]={code,name:p[1]||code,price,prev,open,high,low,pct,buyPct:buy,vol};});res(out);};s.onerror=()=>res({});document.body.appendChild(s);});}
+async function loadHot(){let urls=['hot_stocks.json','www/hot_stocks.json'];let data=null;for(let u of urls){try{let r=await fetch(u+'?t='+Date.now());if(r.ok){data=await r.json();if(data)break;}}catch(e){}}let box=document.getElementById('hot-list'),countEl=document.getElementById('hot-count');if(!data||!data.data||data.data.length==0){box.innerHTML='<div class="text-zinc-500">市場平穩，暫無顯著異動</div>';if(countEl)countEl.innerText='0';return;}if(countEl)countEl.innerText=data.data.length;box.innerHTML='';data.data.forEach(s=>{let isUp=s.change_pct>=0;let isGem=s.is_gem||(s.category&&s.category.includes('創業板'));let border=isGem?'hot-gem':'hot-main';let tag=isGem?'<span class="text-[10px] px-2 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-800 ml-1">GEM 板塊</span>':'<span class="text-[10px] px-2 py-0.5 rounded bg-yellow-900/30 text-yellow-400 border border-yellow-800 ml-1">主板異動</span>';let proReason=`${isUp?'急升':'急跌'} ${Math.abs(s.change_pct)}% | 振幅擴大 | 資金關注`;box.innerHTML+=`<div onclick="selectStock('${s.code}')" class="card-bg p-3 rounded-xl border ${border} cursor-pointer text-left"><div class="flex justify-between items-center"><span class="font-bold text-white text-[13px]">${s.name} <span class="text-zinc-400 text-xs">HK.${s.code}</span>${tag}</span><span class="${isUp?'text-emerald-400':'text-red-400'} font-black text-sm">${isUp?'▲':'▼'}${s.change_pct}%</span></div><div class="text-[11px] text-zinc-400 mt-1.5 font-mono">${proReason}</div></div>`;});}
+async function refreshAll(){document.getElementById('watchlist-count').innerText=watchListCodes.length+'/10';let all=[...new Set([...watchListCodes,currentCode])];let data=await fetchQuotes(all);document.getElementById('last-update').innerText=new Date().toLocaleTimeString();let cont=document.getElementById('stock-list');cont.innerHTML='';watchListCodes.forEach(code=>{let s=data[code];if(!s)return;let up=s.pct>=0;cont.innerHTML+=`<div onclick="selectStock('${s.code}')" class="card-bg p-3 rounded-xl cursor-pointer flex justify-between items-center"><div><div class="font-bold text-white text-sm">${s.name} <span class="text-xs text-zinc-400">HK.${s.code}</span></div><div class="text-xs text-zinc-500 mt-1">資金 ${up?'流入':'流出'} | 買盤 ${s.buyPct}%</div></div><div class="text-right"><div class="font-black ${up?'text-emerald-400':'text-red-400'}">$${formatP(s.price)}</div><div class="text-xs ${up?'text-emerald-400':'text-red-400'}">${s.pct>=0?'+':''}${s.pct.toFixed(2)}%</div></div></div>`;if(!tickStore[s.code])tickStore[s.code]=[];tickStore[s.code].push({price:s.price});if(tickStore[s.code].length>30)tickStore[s.code].shift();});if(data[currentCode])updateDetail(data[currentCode]);}
+function updateDetail(s){document.getElementById('s-name').innerText=s.name;document.getElementById('s-code').innerText='HK.'+s.code;document.getElementById('s-price').innerText='$'+formatP(s.price);document.getElementById('s-change').innerText=(s.pct>=0?'+':'')+s.pct.toFixed(2)+'%';document.getElementById('s-prev').innerText=formatP(s.prev);document.getElementById('s-open').innerText=formatP(s.open);document.getElementById('s-high').innerText=formatP(s.high);document.getElementById('s-low').innerText=formatP(s.low);let hist=tickStore[s.code]||[{price:s.price}];renderCharts(hist,s.pct>=0);}
+function renderCharts(hist,isUp){let labels=hist.map((_,i)=>i);let prices=hist.map(h=>h.price);let ctx=document.getElementById('priceChart').getContext('2d');if(priceChart)priceChart.destroy();priceChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{data:prices,borderColor:isUp?'#10B981':'#EF4444',backgroundColor:isUp?'rgba(16,185,129,0.1)':'rgba(239,68,68,0.1)',fill:true,tension:0.4,pointRadius:0}]},options:{plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}},animation:false}});let ctx2=document.getElementById('volChart').getContext('2d');if(volChart)volChart.destroy();volChart=new Chart(ctx2,{type:'bar',data:{labels:labels,datasets:[{data:prices,backgroundColor:'#27272A'}]},options:{plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}},animation:false}});}
+async function selectStock(c){currentCode=normalizeCode(c);let d=await fetchQuotes([currentCode]);if(d[currentCode]){updateDetail(d[currentCode]);switchTab(2);}}function doSearch(){let v=document.getElementById('search-input').value;if(v)selectStock(v);}window.onload=async()=>{await loadHot();await refreshAll();setInterval(refreshAll,8000);};
+</script></body></html>
