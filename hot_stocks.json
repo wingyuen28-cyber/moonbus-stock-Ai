@@ -1,5 +1,5 @@
 {
-  "update_time": "2026-09-28 07:06:35",
+  "update_time": "2026-09-28 07:14:53",
   "count": 8,
   "data": [
     {
@@ -15,9 +15,9 @@
       "code": "00981",
       "name": "中芯國際",
       "category": "港股主板",
-      "change_pct": -3.79,
+      "change_pct": -3.71,
       "vol_ratio": 49.3,
-      "reason": "-3.79%波動 | 量比49.32x",
+      "reason": "-3.71%波動 | 量比49.32x",
       "is_gem": false
     },
     {
@@ -42,27 +42,27 @@
       "code": "01211",
       "name": "比亞迪股份",
       "category": "港股主板",
-      "change_pct": -0.83,
+      "change_pct": -0.7,
       "vol_ratio": 71.4,
-      "reason": "-0.83%波動 | 量比71.4x",
+      "reason": "-0.70%波動 | 量比71.4x",
       "is_gem": false
     },
     {
       "code": "02800",
       "name": "盈富基金",
       "category": "ETF / 槓桿反向",
-      "change_pct": 0.72,
+      "change_pct": 0.64,
       "vol_ratio": 22.9,
-      "reason": "0.72%波動 | 量比22.92x",
+      "reason": "0.64%波動 | 量比22.92x",
       "is_gem": false
     },
     {
       "code": "03690",
       "name": "美團-W",
       "category": "港股主板",
-      "change_pct": 0.63,
+      "change_pct": 0.56,
       "vol_ratio": 63.6,
-      "reason": "0.63%波動 | 量比63.65x",
+      "reason": "0.56%波動 | 量比63.65x",
       "is_gem": false
     },
     {
