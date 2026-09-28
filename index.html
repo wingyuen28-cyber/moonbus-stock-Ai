@@ -1,18 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>MoonBus Stock Select AI</title>
 <link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-512.png">
-<link rel="manifest" href="manifest.json?v=39">
+<link rel="manifest" href="manifest.json?v=391">
 <meta name="theme-color" content="#facc15">
 <script src="https://cdn.tailwindcss.com"></script>
-<style>
-body{background:#0D1117;color:#E6EDF3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto}
-.card-bg{background:#161B22;border:1px solid #2A3038}
-#splash{position:fixed;inset:0;background:#0D1117;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center}
-</style>
+<style>body{background:#0D1117;color:#E6EDF3}.card-bg{background:#161B22;border:1px solid #2A3038}#splash{position:fixed;inset:0;background:#0D1117;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center}</style>
 </head>
 <body class="pb-20">
 <script>
@@ -20,15 +15,45 @@ if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then
 if(window.caches){caches.keys().then(ks=>ks.forEach(k=>caches.delete(k)));}
 setTimeout(()=>{var s=document.getElementById('splash');if(s)s.style.display='none';},1000);
 </script>
-<div id="splash">
-<img src="icon-512.png" style="width:88px;height:88px;border-radius:16px">
-<div style="color:#facc15;font-weight:900;margin-top:14px;letter-spacing:.2em">MOONBUS DEPARTING...</div>
-<div style="color:#52525b;font-size:11px;margin-top:8px;font-family:monospace">V3.9 REPLACE • FAST</div>
-</div>
-
-<header class="sticky top-0 z-40 card-bg px-4 py-3">
-<div class="flex justify-between items-center max-w-md mx-auto">
-<h1 class="font-black flex items-center gap-2 text-sm"><img src="icon-512.png" class="w-7 h-7 rounded-lg"> MOONBUS <span class="text-yellow-400">STOCK SELECT AI</span> <span class="text-[9px] px-1.5 py-0.5 rounded bg-white text-black">V3.9</span></h1>
-<div class="text-[10px] text-emerald-400">● 實時</div>
-</div>
-<div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-zinc-800 text
+<div id="splash"><img src="icon-512.png" style="width:88px;height:88px;border-radius:16px"><div style="color:#facc15;font-weight:900;margin-top:14px">MOONBUS DEPARTING...</div><div style="color:#52525b;font-size:11px;margin-top:8px">V3.9.1 REPLACE • FAST</div></div>
+<header class="sticky top-0 z-40 card-bg px-4 py-3"><div class="flex justify-between items-center max-w-md mx-auto"><h1 class="font-black flex items-center gap-2 text-sm"><img src="icon-512.png" class="w-7 h-7 rounded-lg"> MOONBUS <span class="text-yellow-400">STOCK SELECT AI</span> <span class="text-[9px] px-1.5 py-0.5 rounded bg-white text-black">V3.9.1</span></h1><div class="text-[10px] text-emerald-400">● 實時</div></div><div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-zinc-800 text-xs text-zinc-500 font-mono"><div>自選:<span id="watchlist-count" class="text-indigo-400 font-bold ml-1">--</span></div><div>異動:<span id="hot-count" class="text-yellow-400 font-bold ml-1">--</span></div><div id="last-update">--:--:--</div></div></header>
+<main class="max-w-md mx-auto px-4 mt-4 space-y-4">
+<section class="card-bg p-3 rounded-xl"><div class="flex justify-between items-center"><span class="text-sm font-bold">📊 全市場異動掃描</span><button onclick="loadHot()" class="text-[11px] underline text-zinc-500">刷新</button></div><div id="hot-list" class="mt-3 text-xs text-center text-zinc-500 py-3">掃描中...</div></section>
+<div class="flex bg-zinc-900 p-1 border border-zinc-800 rounded-lg"><button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 text-sm rounded-md bg-white text-black font-bold">自選監測</button><button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2 text-sm rounded-md text-zinc-400">深度分析</button></div>
+<section id="tab1-content" class="space-y-3"><div class="card-bg p-3 rounded-xl flex gap-2"><input id="add-input" inputmode="numeric" placeholder="輸入代號 如 00700" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none"><button onclick="addWatch()" class="bg-white text-black font-bold px-5 rounded-lg text-sm">加入</button></div><div id="stock-list" class="space-y-2"></div></section>
+<section id="tab2-content" class="hidden"><div class="card-bg p-4 rounded-xl"><div class="flex justify-between"><div><h2 id="s-name" class="font-bold">---</h2><div id="s-code" class="text-xs text-zinc-500">HK.-----</div></div><div class="text-right"><div id="s-price" class="text-2xl font-black">$0.000</div><div id="s-change" class="text-xs font-bold">0.00%</div></div></div><div class="h-36 mt-3"><canvas id="priceChart"></canvas></div></div></section>
+</main>
+<div id="replace-modal" class="fixed inset-0 bg-black/75 z-[100] hidden flex items-end justify-center"><div class="bg-[#161B22] w-full max-w-md rounded-t-2xl p-4 border-t border-zinc-700"><div class="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-3"></div><div class="flex justify-between items-center mb-3"><h3 class="font-bold text-sm">自選已滿 10/10</h3><button onclick="closeReplace()" class="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400">✕</button></div><div class="text-xs text-zinc-400 mb-2">新股 <span id="replace-new-code" class="text-yellow-400 font-bold"></span> 要替換邊一隻？</div><div id="replace-list" class="space-y-2 max-h-72 overflow-auto"></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function switchTab(n){document.getElementById('tab1-content').classList.toggle('hidden',n!==1);document.getElementById('tab2-content').classList.toggle('hidden',n!==2);document.getElementById('tab1-btn').className=n===1?"flex-1 py-2 text-sm rounded-md bg-white text-black font-bold":"flex-1 py-2 text-sm rounded-md text-zinc-400";document.getElementById('tab2-btn').className=n===2?"flex-1 py-2 text-sm rounded-md bg-white text-black font-bold":"flex-1 py-2 text-sm rounded-md text-zinc-400";}
+let watchListCodes=JSON.parse(localStorage.getItem('mb_watch_v33')||'["00700","09988","03690","08447","02342","00981","02800","01211"]');
+let currentCode='00700',priceChart=null,tickStore={},pendingCode=null;
+function normalizeCode(c){return String(c).replace(/\D/g,'').padStart(5,'0');}
+function formatP(v){return isNaN(v)?'--':Number(v).toFixed(3);}
+function addWatch(){
+ let c=normalizeCode(document.getElementById('add-input').value);
+ if(!c||c==='00000')return;
+ if(watchListCodes.includes(c)){alert('HK.'+c+' 已在自選');return;}
+ if(watchListCodes.length<10){
+   watchListCodes.push(c);localStorage.setItem('mb_watch_v33',JSON.stringify(watchListCodes));document.getElementById('add-input').value='';refreshAll();
+ }else{
+   pendingCode=c;document.getElementById('replace-new-code').innerText='HK.'+c;
+   let box=document.getElementById('replace-list');
+   box.innerHTML=watchListCodes.map(code=>`<div onclick="doReplace('${code}')" class="flex justify-between items-center p-3 rounded-xl bg-zinc-900 border border-zinc-800"><span class="text-sm font-mono">HK.${code}</span><span class="text-xs bg-yellow-400 text-black px-3 py-1 rounded-full font-bold">替換此隻</span></div>`).join('');
+   document.getElementById('replace-modal').classList.remove('hidden');
+ }
+}
+function doReplace(oldCode){if(!pendingCode)return;let idx=watchListCodes.indexOf(oldCode);if(idx>=0)watchListCodes[idx]=pendingCode;localStorage.setItem('mb_watch_v33',JSON.stringify(watchListCodes));closeReplace();document.getElementById('add-input').value='';refreshAll();}
+function closeReplace(){document.getElementById('replace-modal').classList.add('hidden');pendingCode=null;}
+function removeWatch(code){if(!confirm('確定刪除 HK.'+code+'?'))return;watchListCodes=watchListCodes.filter(x=>x!==code);localStorage.setItem('mb_watch_v33',JSON.stringify(watchListCodes));refreshAll();}
+function fetchQuotes(codes){return new Promise(res=>{let q=codes.map(x=>'r_hk'+normalizeCode(x)).join(',');let s=document.createElement('script');s.src='https://qt.gtimg.cn/q='+q+'&_t='+Date.now();s.onload=()=>{let out={};codes.forEach(rc=>{let code=normalizeCode(rc);let raw=window['v_r_hk'+code];if(!raw)return;let p=raw.split('~');let price=parseFloat(p[3])||0,prev=parseFloat(p[4])||0,high=parseFloat(p[33])||price,low=parseFloat(p[34])||price;if(!price)return;out[code]={code,name:p[1]||code,price,prev,high,low,pct:prev?((price-prev)/prev*100):0};});res(out);};s.onerror=()=>res({});document.body.appendChild(s);setTimeout(()=>res({}),3500);});}
+async function loadHot(){let box=document.getElementById('hot-list');try{let r=await fetch('https://wingyuen28-cyber.github.io/moonbus-stock-Ai/hot_stocks.json?t='+Date.now(),{cache:'no-store'});let data=await r.json();document.getElementById('hot-count').innerText=data.data?.length||0;if(!data.data||!data.data.length){box.innerHTML='<div class="py-4">市場平穩</div>';return;}box.innerHTML=data.data.map(s=>`<div onclick="selectStock('${s.code}')" class="card-bg p-3 rounded-xl border text-left mb-2 flex justify-between items-center"><div><div class="font-bold text-sm">${s.name} <span class="text-zinc-500 text-xs">HK.${s.code}</span></div></div><div class="text-right"><div class="${s.change_pct>=0?'text-emerald-400':'text-red-400'} font-bold">${s.change_pct>0?'+':''}${s.change_pct}%</div></div></div>`).join('');}catch(e){box.innerHTML='<div class="py-2">暫無數據</div>';}}
+async function refreshAll(){document.getElementById('watchlist-count').innerText=watchListCodes.length+'/10';document.getElementById('last-update').innerText=new Date().toLocaleTimeString();let data=await fetchQuotes([...new Set([...watchListCodes,currentCode])]);let cont=document.getElementById('stock-list');cont.innerHTML='';watchListCodes.forEach(code=>{let s=data[code];if(!s){cont.innerHTML+=`<div class="card-bg p-3 rounded-xl text-sm text-zinc-500 flex justify-between"><span>HK.${code} 載入中...</span><button onclick="removeWatch('${code}')" class="text-zinc-500">✕</button></div>`;return;}let up=s.pct>=0;cont.innerHTML+=`<div class="card-bg p-3 rounded-xl flex justify-between items-center"><div onclick="selectStock('${s.code}')" class="flex-1"><div class="font-bold text-sm">${s.name} <span class="text-xs text-zinc-500">HK.${s.code}</span></div><div class="text-[11px] text-zinc-500">H:${formatP(s.high)} L:${formatP(s.low)}</div></div><div class="flex items-center gap-2"><div onclick="selectStock('${s.code}')" class="text-right"><div class="font-black ${up?'text-emerald-400':'text-red-400'}">$${formatP(s.price)}</div><div class="text-xs ${up?'text-emerald-400':'text-red-400'}">${up?'+':''}${s.pct.toFixed(2)}%</div></div><button onclick="removeWatch('${s.code}')" class="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400">✕</button></div></div>`;if(!tickStore[s.code])tickStore[s.code]=[];tickStore[s.code].push(s.price);if(tickStore[s.code].length>30)tickStore[s.code].shift();});if(data[currentCode]){document.getElementById('s-name').innerText=data[currentCode].name;document.getElementById('s-code').innerText='HK.'+data[currentCode].code;document.getElementById('s-price').innerText='$'+formatP(data[currentCode].price);let el=document.getElementById('s-change');el.innerText=(data[currentCode].pct>=0?'+':'')+data[currentCode].pct.toFixed(2)+'%';el.className='text-xs font-bold '+(data[currentCode].pct>=0?'text-emerald-400':'text-red-400');drawChart();}}
+function drawChart(){let prices=tickStore[currentCode]||[];if(prices.length<2)return;let ctx=document.getElementById('priceChart');if(!ctx)return;let c2=ctx.getContext('2d');if(priceChart)priceChart.destroy();priceChart=new Chart(c2,{type:'line',data:{labels:prices.map((_,i)=>i+''),datasets:[{data:prices,borderColor:'#facc15',backgroundColor:'rgba(250,204,21,0.1)',fill:true,tension:0.3,pointRadius:0,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}}}});}
+async function selectStock(c){currentCode=normalizeCode(c);switchTab(2);await refreshAll();}
+window.addEventListener('load',async()=>{await loadHot();await refreshAll();setInterval(refreshAll,8000);});
+document.getElementById('replace-modal').addEventListener('click',(e)=>{if(e.target.id==='replace-modal')closeReplace();});
+</script>
+</body>
+</html>
