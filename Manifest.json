@@ -1,0 +1,16 @@
+{
+  "name": "MoonBus Stock Select AI",
+  "short_name": "MoonBus",
+  "description": "港股異動掃描 AI Terminal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D1117",
+  "theme_color": "#0D1117",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
