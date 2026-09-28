@@ -1,6 +1,6 @@
 {
-  "update_time": "2026-09-28 07:55:12",
-  "count": 6,
+  "update_time": "2026-09-28 08:07:50",
+  "count": 5,
   "data": [
     {
       "code": "02342",
@@ -15,9 +15,9 @@
       "code": "00981",
       "name": "中芯國際",
       "category": "港股主板",
-      "change_pct": -3.71,
-      "vol_ratio": 3.5,
-      "reason": "急跌 3.71% | 振幅擴大 | 資金關注",
+      "change_pct": -3.24,
+      "vol_ratio": 2.9,
+      "reason": "急跌 3.24% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
@@ -45,15 +45,6 @@
       "change_pct": 0.64,
       "vol_ratio": 1.8,
       "reason": "急升 0.64% | 振幅擴大 | 資金關注",
-      "is_gem": false
-    },
-    {
-      "code": "01211",
-      "name": "比亞迪股份",
-      "category": "港股主板",
-      "change_pct": -0.58,
-      "vol_ratio": 0.3,
-      "reason": "急跌 0.58% | 振幅擴大 | 資金關注",
       "is_gem": false
     }
   ]
