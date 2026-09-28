@@ -3,26 +3,49 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>MoonBus 股票精選 AI</title>
-<link rel="icon" href="icon-192.png"><link rel="manifest" href="manifest.json?v=53">
+<link rel="icon" href="icon-192.png">
 <meta name="theme-color" content="#FACC15">
 <script src="https://cdn.tailwindcss.com"></script>
-<style>body{background:#0D1117;color:#E6EDF3}.card-bg{background:#161B22}.gold{color:#FACC15}.gold-light{color:#FDE68A}.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{scrollbar-width:none}#splash{position:fixed;inset:0;background:#0D1117;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center}</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>body{background:#0D1117;color:#E6EDF3}.card-bg{background:#161B22}.gold{color:#FACC15}.gold-light{color:#FDE68A}.no-scrollbar::-webkit-scrollbar{display:none}#splash{position:fixed;inset:0;background:#0D1117;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column}</style>
 </head>
 <body class="pb-28">
-<div id="splash"><img src="icon-512.png" style="width:88px;height:88px;border-radius:16px"><div style="color:#facc15;font-weight:900;margin-top:12px">MOONBUS V5.3 PRO</div><div style="color:#666;font-size:10px;margin-top:6px">買賣盤深度載入中...</div></div>
-<script>setTimeout(function(){var s=document.getElementById('splash');if(s){s.style.opacity='0';s.style.transition='0.4s';setTimeout(function(){s.style.display='none';},350);}},1300);if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()))}if(window.caches){caches.keys().then(ks=>ks.forEach(k=>caches.delete(k)))}</script>
-<header class="sticky top-0 z-40 bg-[#0D1117]/95 backdrop-blur px-4 py-3 border-b border-zinc-800"><div class="flex justify-between items-center max-w-md mx-auto"><h1 class="font-black flex items-center gap-2 text-[13px]"><img src="icon-512.png" class="w-7 h-7 rounded-lg"><span class="gold">MOONBUS 股票精選 AI</span><span class="text-[9px] px-1.5 py-0.5 rounded bg-white text-black">V5.3</span></h1><div class="text-[10px] text-emerald-400">● 即時</div></div></header>
-
-<main class="max-w-md mx-auto px-4 mt-3 space-y-4">
-<section id="tab1-wrap" class="space-y-3">
-<div class="flex justify-between items-center"><span class="text-[15px] font-black gold">⭐ 自選監測 <span id="watchlist-count" class="text-indigo-300 font-mono ml-1">--</span></span><span class="flex gap-2 items-center"><span id="last-update" class="text-[10px] text-zinc-500">--:--:--</span><button onclick="localStorage.setItem('mb_watch_v33',JSON.stringify(DEFAULT_WATCH));location.reload();" class="text-[10px] bg-yellow-400 text-black px-2.5 py-1 rounded-full font-black">重設8隻</button></span></div>
-<div class="card-bg p-2.5 rounded-xl flex gap-2 border border-zinc-800"><input id="add-input" inputmode="numeric" placeholder="輸入代號 如 02342" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none"><button onclick="addWatch()" class="bg-[#FACC15] text-black font-black px-5 rounded-lg text-sm">加入</button></div>
-<div id="stock-list" class="space-y-3 text-xs text-zinc-500">載入中...</div>
-<div class="space-y-2 pt-1"><div class="flex justify-between items-center"><span class="text-[14px] font-black gold">📊 異動掃描 <span id="hot-count" class="text-yellow-400 font-mono ml-1">--</span></span><div class="flex gap-1"><button onclick="filterHot('all')" id="f-all" class="text-[10px] px-2.5 py-1 rounded-full bg-white text-black font-bold">全部</button><button onclick="filterHot('up')" id="f-up" class="text-[10px] px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-400">急升</button><button onclick="filterHot('down')" id="f-down" class="text-[10px] px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-400">急跌</button></div></div><div id="hot-list" class="flex gap-2 overflow-x-auto no-scrollbar pb-2"></div></div>
-</section>
-
-<section id="tab2-content" class="hidden space-y-3">
-<div class="card-bg p-4 rounded-xl border border-zinc-800">
-<div class="flex justify-between items-start"><div><h2 id="s-name" class="font-black text-[18px] gold-light">--</h2><div id="s-code" class="text-xs text-zinc-500 font-mono">HK.-----</div><div class="flex gap-2 mt-2"><span id="s-rating-badge" class="text-[10px] px-2 py-1 rounded-full bg-zinc-800">--</span><span id="s-trend-badge" class="text-[10px] px-2 py-1 rounded-full bg-zinc-800">--</span></div></div><div class="text-right"><div id="s-price" class="text-[26px] font-black">$--</div><div id="s-change" class="text-sm font-bold">--</div><div id="s-amount" class="text-[10px] text-zinc-400 mt-1">--</div></div></div>
-<div class="h-[190px] mt-4 w-full"><canvas id="priceChart"></canvas></div>
-<div class="grid grid-cols-3 gap-2 mt-4 text-[11px]"><div class="bg-zinc-900 rounded-lg p-2 border border-zinc-800"><div class="text-zinc-500">今開</div><div id="d-open" class="font-bold">--</div></div><div class="bg-zinc-900 rounded-lg p-2
+<div id="splash"><div style="color:#facc15;font-weight:900">MOONBUS V5.4 PRO</div></div>
+<script>
+setTimeout(function(){var s=document.getElementById('splash');if(s)s.style.display='none'},1200);
+const DEFAULT_WATCH=["00700","09988","03690","08447","02342","00981","02800","01211"];
+const TRAD={"00700":"騰訊控股","09988":"阿里巴巴","03690":"美團","08447":"MS CONCEPT","02342":"京信通信","00981":"中芯國際","02800":"盈富基金","01211":"比亞迪股份","01816":"中廣核電力","00836":"華潤電力"};
+let watch=JSON.parse(localStorage.getItem('mb_watch_v33')||'null');
+if(!watch||!Array.isArray(watch)||watch.length==0){watch=DEFAULT_WATCH.slice();localStorage.setItem('mb_watch_v33',JSON.stringify(watch));}
+let cur='02342',chart=null,ticks={},hot=[],filter='all',detail={};
+function norm(c){return String(c).replace(/\D/g,'').padStart(5,'0')}
+function fmtP(v){return isNaN(v)?'--':Number(v).toFixed(v>=10?2:3)}
+function fmtAmt(v){if(!v)return'--';v=Number(v);if(v>=1e8)return(v/1e8).toFixed(2)+'億';if(v>=1e4)return(v/1e4).toFixed(1)+'萬';return Math.round(v)+''}
+function nameOf(code,raw){return TRAD[code]||raw||code}
+function addWatch(){let c=norm(document.getElementById('add-input').value);if(!c||c=='00000')return;if(watch.includes(c)){alert('已在自選');return}if(watch.length<10){watch.push(c);localStorage.setItem('mb_watch_v33',JSON.stringify(watch));document.getElementById('add-input').value='';refresh()}else{alert('已滿10隻，先刪除一隻')}}
+function delWatch(c){if(!confirm('刪除 HK.'+c+'?'))return;watch=watch.filter(x=>x!=c);localStorage.setItem('mb_watch_v33',JSON.stringify(watch));refresh()}
+function fetchQ(codes){return new Promise(res=>{let q=codes.map(x=>'r_hk'+norm(x)).join(',');let s=document.createElement('script');s.src='https://qt.gtimg.cn/q='+q+'&_t='+Date.now();let done=false;function fin(o){if(done)return;done=true;try{document.body.removeChild(s)}catch(e){}res(o)}s.onload=function(){let o={};codes.forEach(rc=>{let code=norm(rc);let raw=window['v_r_hk'+code];if(!raw)return;let p=raw.split('~');let price=parseFloat(p[3])||0;let prev=parseFloat(p[4])||price;let open=parseFloat(p[5])||price;if(!price)price=prev;if(!price)return;let high=parseFloat(p[33])||price;let low=parseFloat(p[34])||price;let vol=parseFloat(p[6])||0;let amt=parseFloat(p[37])||0;let bids=[],asks=[];for(let i=0;i<5;i++){let bp=parseFloat(p[10+i])||price-0.01*(i+1);let bv=parseFloat(p[20+i])||50000;let ap=parseFloat(p[30+i])||price+0.01*(i+1);let av=parseFloat(p[40+i])||50000;bids.push({price:bp,vol:bv});asks.push({price:ap,vol:av})}let bSum=bids.reduce((a,b)=>a+b.vol,0);let aSum=asks.reduce((a,b)=>a+b.vol,0);o[code]={code:code,name:nameOf(code,p[1]),price:price,prev:prev,open:open,high:high,low:low,vol:vol,amount:amt,pct:prev?((price-prev)/prev*100):0,bids:bids,asks:asks,bSum:bSum,aSum:aSum,ratio:bSum/(aSum||1)}});fin(o)};s.onerror=function(){fin({})};document.body.appendChild(s);setTimeout(function(){fin({})},3500)})}
+function calc(s){
+let range=(s.high-s.low)/s.prev*100||0;
+let vScore=s.amount>=5e8?40:s.amount>=1e8?30:s.amount>=5e7?20:s.amount>=1e7?10:2;
+let tScore=s.pct>5?30:s.pct>3?28:s.pct>1?22:s.pct>-1?15:s.pct>-3?10:5;
+let rScore=range>15?5:range>10?12:range>6?18:25;
+let bBonus=s.ratio>1.5?5:s.ratio<0.6?-5:0;
+let total=Math.max(5,Math.min(95,vScore+tScore+rScore+bBonus));
+let rating=total>=85?'💎 強力買入':total>=70?'🚀 買入':total>=50?'👀 觀望':total>=30?'⚠️ 避險':'💀 仙股警告';
+let trend=s.pct>1?'上升':s.pct<-1?'下跌':'橫行';
+let sup=(s.low*0.98).toFixed(3);let resi=(s.high*1.02).toFixed(3);
+let strat=total>=70?'逢低吸納':total>=50?'低吸高拋':total>=30?'反彈減磅':'觀望為主';
+let comment='京信通信 5G天線龍頭。現價 $'+s.price.toFixed(3)+' 振幅 '+range.toFixed(1)+'% 成交 '+fmtAmt(s.amount)+'。'+(s.ratio>1.2?'買盤承接強。':'沽壓較重。');
+return {total,rating,trend,sup,resi,strat,comment,range,vScore,tScore,rScore,bBonus}
+}
+async function refresh(){
+document.getElementById('watchlist-count').innerText=watch.length+'/10';
+document.getElementById('last-update').innerText=new Date().toLocaleTimeString();
+let uniq=[...new Set(watch.concat([cur]))];
+let data=await fetchQ(uniq);
+let box=document.getElementById('stock-list');box.innerHTML='';
+for(let code of watch){
+let s=data[code];if(!s){box.innerHTML+='<div class="card-bg p-3 rounded-xl border border-white/20">HK.'+code+' 載入中...</div>';continue}
+let up=s.pct>0.05,down=s.pct<-0.05;let bc=up?'border-emerald-500':down?'border-red-500':'border-white';let tc=up?'text-emerald-400':down?'text-red-400':'text-zinc-300';
+box.innerHTML+='<div class="card-bg p-3.5 rounded-xl border-2 '+bc+' flex justify-between items-center"><div onclick="pick(\''+s.code+'\')" class="flex-1"><div class="font-black text-[17px] gold-light">'+s.name+'</div><div class="text-[11px] text-zinc-400">HK.'+s.code+' 高:'+fmtP(s.high)+' 低:'+fmtP(s.low)+'</div><div class="text-[11px] text-zinc-400">成交額 <span class="text-zinc-100 font-bold">'+fmtAmt(s.amount)+'</span></div></div><div class="flex gap-2 items-center"><div onclick="pick(\''+s.code+'\')" class="text-right"><div class="font-black '+
