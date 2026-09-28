@@ -37,8 +37,7 @@ for i in range(0,len(codes),20):
     quotes.update(fetch_batch(batch))
     time.sleep(0.3)
 
-for code,q in quotes.items():
-    if abs(q["pct"])>=0.5: # 為測試，你而家睇到有數據，放寬到0.5%，遲啲你可改返5%
+if abs(q["pct"])>=5 or q["vol"]>=2:  # 改返5%同2倍量先算異動
         hot.append({"code":code,"name":STOCKS[code]["name"],"category":STOCKS[code]["category"],"change_pct":round(q["pct"],2),"vol_ratio":round(q["vol"],1),"reason":f"{q['pct']:.2f}%波動 | 量比{q['vol']}x","is_gem":"創業板" in STOCKS[code]["category"]})
 
 hot=sorted(hot,key=lambda x: abs(x["change_pct"]),reverse=True)[:40]
