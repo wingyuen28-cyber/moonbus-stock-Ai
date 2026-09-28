@@ -3,800 +3,200 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>港股 AI 實時異動與主力資金分析</title>
-
-  <!-- Tailwind CSS & Lucide Icons & Chart.js -->
+  <title>港股 AI 實時異動與主力資金分析 V2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
   <style>
     body { background-color: #0D1117; color: #E6EDF3; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    /* 配色規範：上升為綠色，下跌為紅色 */
-    .hk-up { color: #30D158; }
-    .hk-down { color: #FF3B30; }
-    .bg-hk-up { background-color: #30D158; }
-    .bg-hk-down { background-color: #FF3B30; }
-    .card-bg { background-color: #161B22; border: 1px solid #30363D; }
+   .hk-up { color: #30D158; }
+   .hk-down { color: #FF3B30; }
+   .bg-hk-up { background-color: #30D158; }
+   .bg-hk-down { background-color: #FF3B30; }
+   .card-bg { background-color: #161B22; border: 1px solid #30363D; }
+   .hot-gem { border-color: #A855F7!important; box-shadow: 0 0 15px rgba(168,85,247,0.35); }
+   .hot-main { border-color: #FACC15!important; box-shadow: 0 0 15px rgba(250,204,21,0.35); }
   </style>
 </head>
 <body class="pb-10">
-
-  <!-- 頂部 Header & 狀態列 -->
   <header class="sticky top-0 z-50 card-bg px-4 py-3 shadow-md border-b border-gray-800">
     <div class="flex justify-between items-center max-w-md mx-auto">
       <div class="flex items-center space-x-2">
         <i data-lucide="activity" class="text-indigo-400 w-5 h-5"></i>
-        <h1 class="font-bold text-lg tracking-wide text-white">港股 AI 異動大師 <span class="text-xs px-2 py-0.5 rounded bg-indigo-900 text-indigo-300">L1 實時版</span></h1>
+        <h1 class="font-bold text-lg tracking-wide text-white">港股 AI 異動大師 <span class="text-xs px-2 py-0.5 rounded bg-yellow-900 text-yellow-300 border border-yellow-700">V2 全市場</span></h1>
       </div>
       <div class="flex items-center space-x-1 text-xs text-gray-400">
         <span id="status-dot" class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
         <span id="db-status-badge">連線中...</span>
       </div>
     </div>
-
-    <!-- 狀態簡報 -->
     <div class="flex justify-between max-w-md mx-auto mt-2 pt-2 border-t border-gray-800 text-xs">
       <div>自訂監測: <span id="watchlist-count" class="text-indigo-400 font-bold">0/10</span></div>
-      <div>刷新頻率: <span class="text-green-400 font-semibold">報價8秒 / 圖表3分</span></div>
+      <div>異動榜: <span id="hot-count-top" class="text-yellow-400 font-bold">--隻</span></div>
       <div>最後更新: <span id="last-update-time" class="text-gray-300">--:--:--</span></div>
     </div>
   </header>
 
   <main class="max-w-md mx-auto px-4 mt-4 space-y-4">
+    <!-- ===== V2 新增：全場異動榜 (含創業板) 黃框區 ===== -->
+    <section class="card-bg p-3 rounded-xl shadow-lg space-y-2 border border-yellow-900/50">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <span class="text-yellow-400 font-black text-sm">💎 全場異動榜</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-purple-900/60 text-purple-300 border border-purple-700">含創業板</span>
+        </div>
+        <div class="text-[10px] text-gray-500">
+          <span id="hot-update-time">--:--</span> · <button onclick="loadHotStocks()" class="text-yellow-400 underline">刷新榜單</button>
+        </div>
+      </div>
+      <div id="hot-list" class="space-y-2">
+        <div class="text-center py-4 text-gray-500 text-xs">正在讀取 hot_stocks.json 全市場掃描結果...</div>
+      </div>
+    </section>
 
-    <!-- 頁面 Tab 切換區 -->
     <div class="flex rounded-lg bg-gray-900 p-1 border border-gray-800">
-      <button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition">階段一：自訂異動監測網</button>
+      <button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition">階段一：自訂監測網</button>
       <button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2 text-sm font-medium rounded-md text-gray-400 transition">階段二：個股深度分析</button>
     </div>
 
-    <!-- ==================== 階段一：用戶自訂監測網 (上限10隻) ==================== -->
     <section id="tab1-content" class="space-y-3">
-      
-      <!-- 新增自訂監測股票欄位 -->
       <div class="card-bg p-3 rounded-xl shadow-lg space-y-2">
-        <label class="block text-xs font-medium text-gray-300">新增自訂監測股份 (最多可儲存 10 隻)：</label>
+        <label class="block text-xs font-medium text-gray-300">新增自訂監測股份 (最多10隻)：</label>
         <div class="flex space-x-2">
-          <input type="text" id="add-watchlist-input" placeholder="輸入代號，如 2342, 700" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+          <input type="text" id="add-watchlist-input" placeholder="輸入代號，如 2342, 8000" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
           <button onclick="handleAddWatchlist()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-1">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            <span>加入監測</span>
+            <i data-lucide="plus" class="w-4 h-4"></i><span>加入</span>
           </button>
         </div>
       </div>
-
       <div class="flex justify-between items-center text-xs text-gray-400 px-1 pt-1">
-        <span>每 8 秒自動更新實時報價與主力籌碼數據</span>
-        <button onclick="refreshRealtimeData()" class="text-indigo-400 hover:underline flex items-center space-x-1">
-          <i data-lucide="refresh-cw" class="w-3 h-3"></i>
-          <span>手動刷新</span>
-        </button>
+        <span>每 8 秒自動更新</span>
+        <button onclick="refreshRealtimeData()" class="text-indigo-400 hover:underline flex items-center space-x-1"><i data-lucide="refresh-cw" class="w-3 h-3"></i><span>手動刷新</span></button>
       </div>
-
-      <!-- 異動股票列表 -->
-      <div id="stock-list" class="space-y-3">
-        <div class="text-center py-8 text-gray-500 text-sm">正在連線港交所獲取實時行情...</div>
-      </div>
+      <div id="stock-list" class="space-y-3"></div>
     </section>
 
-    <!-- ==================== 階段二：個股搜尋與深度分析 ==================== -->
     <section id="tab2-content" class="space-y-4 hidden">
-      
-      <!-- 手動搜尋欄 -->
       <div class="card-bg p-3 rounded-xl shadow-lg">
-        <label class="block text-xs font-medium text-gray-400 mb-1">輸入任意港股代號 (即時數據分析)：</label>
+        <label class="block text-xs font-medium text-gray-400 mb-1">輸入任意港股代號：</label>
         <div class="flex space-x-2">
-          <input type="text" id="search-input" placeholder="例如: 700, 9988, 2342" value="00700" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-          <button onclick="handleSearch()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-1">
-            <i data-lucide="search" class="w-4 h-4"></i>
-            <span>即時分析</span>
-          </button>
+          <input type="text" id="search-input" placeholder="例如: 700, 8000" value="00700" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+          <button onclick="handleSearch()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-1"><i data-lucide="search" class="w-4 h-4"></i><span>即時分析</span></button>
         </div>
       </div>
-
-      <!-- 實時報價抬頭卡片 -->
       <div id="quote-header" class="card-bg p-4 rounded-xl shadow-lg space-y-2">
         <div class="flex justify-between items-start">
-          <div>
-            <div class="flex items-center space-x-2">
-              <h2 id="stock-name" class="text-xl font-bold text-white">---</h2>
-              <span id="stock-category-badge" class="text-[10px] px-2 py-0.5 rounded bg-indigo-900/60 text-indigo-300 border border-indigo-700/50">---</span>
-            </div>
-            <div id="stock-code" class="text-xs text-gray-400 mt-0.5">HK.----- · 實時報價</div>
-          </div>
-          <div class="text-right">
-            <div id="stock-price" class="text-2xl font-black text-white">$0.000</div>
-            <div id="stock-change" class="text-xs font-semibold text-gray-400">0.000 (0.00%)</div>
-          </div>
+          <div><div class="flex items-center space-x-2"><h2 id="stock-name" class="text-xl font-bold text-white">---</h2><span id="stock-category-badge" class="text-[10px] px-2 py-0.5 rounded bg-indigo-900/60 text-indigo-300 border border-indigo-700/50">---</span></div><div id="stock-code" class="text-xs text-gray-400 mt-0.5">HK.----- · 實時報價</div></div>
+          <div class="text-right"><div id="stock-price" class="text-2xl font-black text-white">$0.000</div><div id="stock-change" class="text-xs font-semibold text-gray-400">0.000 (0.00%)</div></div>
         </div>
-        <div class="grid grid-cols-4 gap-2 pt-2 border-t border-gray-800 text-center text-xs">
-          <div><span class="text-gray-500 block">昨收</span><span id="prev-close" class="text-gray-300 font-medium">$0.000</span></div>
-          <div><span class="text-gray-500 block">今開</span><span id="open-price" class="text-gray-300 font-medium">$0.000</span></div>
-          <div><span class="text-gray-500 block">最高</span><span id="high-price" class="text-gray-300 font-medium">$0.000</span></div>
-          <div><span class="text-gray-500 block">最低</span><span id="low-price" class="text-gray-300 font-medium">$0.000</span></div>
-        </div>
+        <div class="grid grid-cols-4 gap-2 pt-2 border-t border-gray-800 text-center text-xs"><div><span class="text-gray-500 block">昨收</span><span id="prev-close" class="text-gray-300 font-medium">$0.000</span></div><div><span class="text-gray-500 block">今開</span><span id="open-price" class="text-gray-300 font-medium">$0.000</span></div><div><span class="text-gray-500 block">最高</span><span id="high-price" class="text-gray-300 font-medium">$0.000</span></div><div><span class="text-gray-500 block">最低</span><span id="low-price" class="text-gray-300 font-medium">$0.000</span></div></div>
       </div>
-
-      <!-- AI 主力意圖評級卡片 -->
       <div class="card-bg p-4 rounded-xl shadow-lg space-y-3">
-        <div class="flex justify-between items-center border-b border-gray-800 pb-2">
-          <div class="flex items-center space-x-2">
-            <i data-lucide="cpu" class="text-indigo-400 w-5 h-5"></i>
-            <span class="font-bold text-sm text-white">AI 實時主力評級</span>
-          </div>
-          <span id="ai-status-badge" class="px-2.5 py-1 rounded text-xs font-bold border">計算中...</span>
-        </div>
-
-        <div class="text-xs text-gray-300 bg-gray-900/60 p-2.5 rounded-lg border border-gray-800 leading-relaxed" id="ai-rating-desc">
-          正在分析主力外盤、內盤與量比交易特徵...
-        </div>
-
-        <!-- 主動買/沽盤力量與量比比對 -->
-        <div class="space-y-1.5 pt-1">
-          <div class="flex justify-between text-xs">
-            <span class="hk-up font-semibold">主動買盤: <span id="buy-pct">0%</span></span>
-            <span class="text-gray-400">量比: <span id="vol-ratio-disp" class="text-white font-bold">1.0x</span></span>
-            <span class="hk-down font-semibold">主動沽盤: <span id="sell-pct">0%</span></span>
-          </div>
-          <div class="w-full bg-gray-800 h-3 rounded-full overflow-hidden flex">
-            <div id="buy-bar" class="bg-hk-up h-full transition-all duration-500" style="width: 50%;"></div>
-            <div id="sell-bar" class="bg-hk-down h-full transition-all duration-500" style="width: 50%;"></div>
-          </div>
-        </div>
-
-        <!-- 雙圖表拆分區域 (3分鐘節點 / 8秒跟貼現價) -->
-        <div class="space-y-4 pt-2">
-          
-          <!-- 圖表一：實時現價走勢圖 -->
-          <div>
-            <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
-              <span class="text-white font-semibold flex items-center space-x-1.5">
-                <span class="w-2 h-2 rounded-full bg-white inline-block"></span>
-                <span>圖表一：實時股價走勢 (0.005 單位)</span>
-              </span>
-              <span class="text-indigo-400 font-medium">3分鐘刻度</span>
-            </div>
-            <div class="h-36 w-full">
-              <canvas id="priceChart"></canvas>
-            </div>
-          </div>
-
-          <!-- 圖表二：VWAP 機構成本線走勢圖 -->
-          <div class="pt-3 border-t border-gray-800">
-            <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
-              <span class="text-amber-400 font-semibold flex items-center space-x-1.5">
-                <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
-                <span>圖表二：VWAP 機構成本線 (0.005 單位)</span>
-              </span>
-              <span class="text-amber-400 font-medium">機構平均成本</span>
-            </div>
-            <div class="h-36 w-full">
-              <canvas id="vwapChart"></canvas>
-            </div>
-          </div>
-
-        </div>
+        <div class="flex justify-between items-center border-b border-gray-800 pb-2"><div class="flex items-center space-x-2"><i data-lucide="cpu" class="text-indigo-400 w-5 h-5"></i><span class="font-bold text-sm text-white">AI 實時主力評級</span></div><span id="ai-status-badge" class="px-2.5 py-1 rounded text-xs font-bold border">計算中...</span></div>
+        <div class="text-xs text-gray-300 bg-gray-900/60 p-2.5 rounded-lg border border-gray-800 leading-relaxed" id="ai-rating-desc">分析中...</div>
+        <div class="space-y-1.5 pt-1"><div class="flex justify-between text-xs"><span class="hk-up font-semibold">主動買盤: <span id="buy-pct">0%</span></span><span class="text-gray-400">量比: <span id="vol-ratio-disp" class="text-white font-bold">1.0x</span></span><span class="hk-down font-semibold">主動沽盤: <span id="sell-pct">0%</span></span></div><div class="w-full bg-gray-800 h-3 rounded-full overflow-hidden flex"><div id="buy-bar" class="bg-hk-up h-full transition-all duration-500" style="width: 50%;"></div><div id="sell-bar" class="bg-hk-down h-full transition-all duration-500" style="width: 50%;"></div></div></div>
+        <div class="space-y-4 pt-2"><div><div class="flex justify-between items-center text-xs text-gray-400 mb-1"><span class="text-white font-semibold flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-white inline-block"></span><span>圖表一：實時股價走勢</span></span><span class="text-indigo-400 font-medium">3分鐘刻度</span></div><div class="h-36 w-full"><canvas id="priceChart"></canvas></div></div><div class="pt-3 border-t border-gray-800"><div class="flex justify-between items-center text-xs text-gray-400 mb-1"><span class="text-amber-400 font-semibold flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span><span>圖表二：VWAP 機構成本線</span></span><span class="text-amber-400 font-medium">機構平均成本</span></div><div class="h-36 w-full"><canvas id="vwapChart"></canvas></div></div></div>
       </div>
-
-      <!-- AI 實時值博分數 (Risk-Reward Score) -->
-      <div class="card-bg p-4 rounded-xl shadow-lg space-y-3">
-        <div class="flex justify-between items-center border-b border-gray-800 pb-2">
-          <div>
-            <span class="font-bold text-sm text-white block">AI 實時值博分數</span>
-            <span class="text-[10px] text-gray-400">基於資金流、量比與成本優勢綜合評估</span>
-          </div>
-          <div class="text-right">
-            <span id="ai-score" class="text-2xl font-black text-indigo-400">-- 分</span>
-          </div>
-        </div>
-
-        <div class="text-xs p-2.5 rounded-lg border bg-indigo-950/40 border-indigo-800/60 font-medium text-indigo-200" id="risk-reward-advice">
-          計算值博率中...
-        </div>
-
-        <div class="grid grid-cols-3 gap-2 text-center text-xs pt-1">
-          <div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
-            <span class="text-gray-400 block">資金面 (40%)</span>
-            <span id="score-capital" class="font-bold text-white">-- 分</span>
-          </div>
-          <div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
-            <span class="text-gray-400 block">動能面 (30%)</span>
-            <span id="score-momentum" class="font-bold text-white">-- 分</span>
-          </div>
-          <div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800">
-            <span class="text-gray-400 block">成本優勢 (30%)</span>
-            <span id="score-tech" class="font-bold text-white">-- 分</span>
-          </div>
-        </div>
-      </div>
-
+      <div class="card-bg p-4 rounded-xl shadow-lg space-y-3"><div class="flex justify-between items-center border-b border-gray-800 pb-2"><div><span class="font-bold text-sm text-white block">AI 實時值博分數</span><span class="text-[10px] text-gray-400">基於資金流、量比與成本優勢</span></div><div class="text-right"><span id="ai-score" class="text-2xl font-black text-indigo-400">-- 分</span></div></div><div class="text-xs p-2.5 rounded-lg border bg-indigo-950/40 border-indigo-800/60 font-medium text-indigo-200" id="risk-reward-advice">計算中...</div><div class="grid grid-cols-3 gap-2 text-center text-xs pt-1"><div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800"><span class="text-gray-400 block">資金面 (40%)</span><span id="score-capital" class="font-bold text-white">-- 分</span></div><div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800"><span class="text-gray-400 block">動能面 (30%)</span><span id="score-momentum" class="font-bold text-white">-- 分</span></div><div class="bg-gray-900/80 p-2 rounded-lg border border-gray-800"><span class="text-gray-400 block">成本優勢 (30%)</span><span id="score-tech" class="font-bold text-white">-- 分</span></div></div></div>
     </section>
-
   </main>
 
-  <script>
-    let fullStockDatabase = {};
-    let priceChartInstance = null;
-    let vwapChartInstance = null;
-    let currentSelectedCode = '00700';
-
-    // 💡 實時 3 分鐘快照儲存庫
-    let stockAccumulatedStore = {};
-
-    const DEFAULT_WATCHLIST = ['00700', '09988', '03690', '01810', '02800', '01211', '00981', '01024', '02342', '02015'];
-    
-    function getStoredWatchlist() {
-      const saved = localStorage.getItem('hk_user_watchlist_v1');
-      if (saved) {
-        try {
-          const list = JSON.parse(saved);
-          if (Array.isArray(list) && list.length > 0) return list;
-        } catch(e) {}
-      }
-      return DEFAULT_WATCHLIST;
-    }
-
-    function saveStoredWatchlist(list) {
-      localStorage.setItem('hk_user_watchlist_v1', JSON.stringify(list));
-    }
-
-    let watchListCodes = getStoredWatchlist();
-
-    function normalizeCode(code) {
-      if (!code) return '';
-      let clean = code.toString().trim().replace(/\D/g, '');
-      return clean.padStart(5, '0');
-    }
-
-    function formatPriceNum(val) {
-      if (typeof val !== 'number' || isNaN(val)) return '0.000';
-      return val.toFixed(3);
-    }
-
-    function formatAmount(val) {
-      const num = parseFloat(val);
-      if (isNaN(num)) return '--';
-      if (num >= 100000000) return (num / 100000000).toFixed(2) + '億';
-      if (num >= 10000) return (num / 10000).toFixed(0) + '萬';
-      return num.toFixed(0);
-    }
-
-    // AI 主力評級
-    function evaluateAIRating(buyPct, changePct, volumeRatio) {
-      const isHighVol = volumeRatio >= 1.8;
-
-      if (buyPct >= 60 && changePct >= 0) {
-        if (isHighVol) {
-          return {
-            title: "🔥 主力強拉 (爆量)",
-            badgeBg: "bg-green-900/80 text-green-300 border-green-500/80",
-            desc: `量比達 ${volumeRatio.toFixed(1)}x 伴隨外盤主動大單強勢吃單，機構資金真金白銀爆量突破！`
-          };
-        } else {
-          return {
-            title: "🟢 主力買盤",
-            badgeBg: "bg-green-900/50 text-green-300 border-green-500/40",
-            desc: "外盤主動買盤佔優，推升股價溫和上揚，多頭結構良好。"
-          };
-        }
-      } else if (buyPct >= 55 && changePct < 0) {
-        return {
-          title: "👁️ 暗中吸籌",
-          badgeBg: "bg-emerald-900/60 text-emerald-300 border-emerald-500/50",
-          desc: "股價受壓回落，但外盤買單持續逆勢低吸，顯現主力逢低建倉痕跡。"
-        };
-      } else if (buyPct <= 40 && changePct <= 0) {
-        if (isHighVol) {
-          return {
-            title: "🚨 主力砸盤 (爆量)",
-            badgeBg: "bg-red-900/80 text-red-300 border-red-500/80",
-            desc: `量比達 ${volumeRatio.toFixed(1)}x 伴隨內盤大單恐慌性拋售，資金加速離場！`
-          };
-        } else {
-          return {
-            title: "🔴 主力沽盤",
-            badgeBg: "bg-red-900/50 text-red-300 border-red-500/40",
-            desc: "內盤主動賣壓沈重，資金流出明顯，短線面臨調整壓力。"
-          };
-        }
-      } else if (buyPct <= 45 && changePct > 0) {
-        return {
-          title: "⚠️ 暗中拋籌",
-          badgeBg: "bg-amber-900/60 text-amber-300 border-amber-500/50",
-          desc: "股價暫維持高位，但內盤主動沽單佔比偏高，防範主力拉高誘多派發。"
-        };
-      } else {
-        return {
-          title: "⚖️ 籌碼博弈",
-          badgeBg: "bg-gray-800 text-gray-300 border-gray-700",
-          desc: "買賣雙方力量拉鋸，成交量平穩，建議觀望等待方向。"
-        };
-      }
-    }
-
-    // AI 實時值博分數
-    function calculateRiskRewardScore(stock) {
-      const capScore = stock.buyPct;
-      const volScore = Math.min(100, Math.round(stock.volumeRatio * 35));
-
-      const vwapDiffPct = stock.vwap > 0 ? ((stock.price - stock.vwap) / stock.vwap) * 100 : 0;
-      let techScore = 50 + (stock.pct * 2.5) + (vwapDiffPct * 4);
-      techScore = Math.min(100, Math.max(10, Math.round(techScore)));
-
-      let totalScore = Math.round((capScore * 0.4) + (volScore * 0.3) + (techScore * 0.3));
-      totalScore = Math.min(99, Math.max(25, totalScore));
-
-      let advice = "";
-      if (totalScore >= 80) advice = "🔥 極高值博率：主力資金強勢入場，短線量價齊揚，入場勝率與盈虧比優異！";
-      else if (totalScore >= 65) advice = "🟢 中高值博率：籌碼面呈淨流入，具備多頭動能，可考慮逢回踩分批關注。";
-      else if (totalScore >= 45) advice = "⚖️ 中性值博率：多空雙方力量拉鋸，無明顯趨勢，建議耐心觀望待方向確立。";
-      else advice = "⚠️ 低值博率 / 風險偏高：主動拋盤顯著且動能不足，注意下行風險，不宜盲目抄底。";
-
-      return { totalScore, capScore, volScore, techScore, advice };
-    }
-
-    window.onload = async () => {
-      lucide.createIcons();
-      await loadStockDatabase();
-      refreshRealtimeData();
-      setInterval(refreshRealtimeData, 8000); // ⏱️ 修改回 8 秒刷新一次（跟貼即時股價）
-    };
-
-    async function loadStockDatabase() {
-      try {
-        const res = await fetch('stocks.json');
-        if (res.ok) fullStockDatabase = await res.json();
-      } catch (e) {}
-    }
-
-    function updateWatchlistCounter() {
-      document.getElementById('watchlist-count').innerText = `${watchListCodes.length}/10`;
-    }
-
-    function switchTab(tabNum) {
-      if (tabNum === 1) {
-        document.getElementById('tab1-content').classList.remove('hidden');
-        document.getElementById('tab2-content').classList.add('hidden');
-        document.getElementById('tab1-btn').className = "flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition";
-        document.getElementById('tab2-btn').className = "flex-1 py-2 text-sm font-medium rounded-md text-gray-400 transition";
-      } else {
-        document.getElementById('tab2-content').classList.remove('hidden');
-        document.getElementById('tab1-content').classList.add('hidden');
-        document.getElementById('tab2-btn').className = "flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition";
-        document.getElementById('tab1-btn').className = "flex-1 py-2 text-sm font-medium rounded-md text-gray-400 transition";
-      }
-    }
-
-    function handleAddWatchlist() {
-      const input = document.getElementById('add-watchlist-input');
-      const code = normalizeCode(input.value);
-      if (!code) { alert("請輸入正確的港股代號"); return; }
-      if (watchListCodes.includes(code)) { alert("該股份已在監測名單中"); return; }
-      if (watchListCodes.length >= 10) { alert("自訂監測名單最多只可儲存 10 隻股份，請先刪除不常用的股份。"); return; }
-
-      watchListCodes.push(code);
-      saveStoredWatchlist(watchListCodes);
-      input.value = '';
-      refreshRealtimeData();
-    }
-
-    function handleRemoveWatchlist(event, code) {
-      event.stopPropagation();
-      if (watchListCodes.length <= 1) { alert("監測名單最少需保留 1 隻股份"); return; }
-      watchListCodes = watchListCodes.filter(c => c !== code);
-      saveStoredWatchlist(watchListCodes);
-      refreshRealtimeData();
-    }
-
-    function fetchRealtimeQuoteScript(codesArray) {
-      return new Promise((resolve) => {
-        const scriptId = 'realtime-script-loader';
-        const oldScript = document.getElementById(scriptId);
-        if (oldScript) oldScript.remove();
-
-        const formattedCodes = codesArray.map(c => 'r_hk' + normalizeCode(c)).join(',');
-        const script = document.createElement('script');
-        script.id = scriptId;
-        script.src = `https://qt.gtimg.cn/q=${formattedCodes}&_t=${Date.now()}`;
-
-        script.onload = () => {
-          const results = {};
-          codesArray.forEach(rawCode => {
-            const code = normalizeCode(rawCode);
-            const varName = 'v_r_hk' + code;
-            const rawData = window[varName];
-
-            if (rawData) {
-              const p = rawData.split('~');
-              const price = parseFloat(p[3]) || 0;
-              const prevClose = parseFloat(p[4]) || 0;
-              const open = parseFloat(p[5]) || 0;
-              const high = parseFloat(p[33]) || price;
-              const low = parseFloat(p[34]) || price;
-              const turnover = parseFloat(p[37]) * 10000 || 0;
-
-              const change = price - prevClose;
-              const pct = prevClose > 0 ? (change / prevClose) * 100 : 0;
-
-              let outerVol = parseFloat(p[7]) || 0;
-              let innerVol = parseFloat(p[8]) || 0;
-              let totalVol = outerVol + innerVol;
-              let buyPct = 50;
-
-              if (totalVol > 0) {
-                buyPct = Math.round((outerVol / totalVol) * 100);
-              } else {
-                const bidVol1 = parseFloat(p[10]) || 0;
-                const askVol1 = parseFloat(p[20]) || 0;
-                let posRatio = (high > low && high > 0) ? (price - low) / (high - low) : 0.5;
-                let orderRatio = (bidVol1 + askVol1 > 0) ? bidVol1 / (bidVol1 + askVol1) : 0.5;
-                let calcBuy = (posRatio * 50) + 25 + (pct * 2.5) + ((orderRatio - 0.5) * 20);
-                buyPct = Math.min(88, Math.max(12, Math.round(calcBuy)));
-              }
-
-              let volRatio = parseFloat(p[49]) || parseFloat(p[47]) || 0;
-              if (volRatio === 0 || isNaN(volRatio)) {
-                volRatio = turnover > 0 ? parseFloat((turnover / 50000000 * 1.2 + 0.8).toFixed(1)) : 1.2;
-              }
-
-              const totalShares = parseFloat(p[6]) * 100 || 1;
-              const vwap = turnover > 0 && totalShares > 0 ? (turnover / totalShares) : price;
-
-              results[code] = {
-                code: code,
-                name: p[1] || (fullStockDatabase[code] ? fullStockDatabase[code].name : `港股 (${code})`),
-                price: price,
-                prevClose: prevClose,
-                open: open,
-                high: high,
-                low: low,
-                change: change,
-                pct: pct,
-                turnover: turnover,
-                buyPct: buyPct,
-                sellPct: 100 - buyPct,
-                volumeRatio: volRatio,
-                vwap: vwap
-              };
-            }
-          });
-          resolve(results);
-        };
-
-        script.onerror = () => { resolve(null); };
-        document.body.appendChild(script);
-      });
-    }
-
-    async function refreshRealtimeData() {
-      updateWatchlistCounter();
-      const fetchList = Array.from(new Set(watchListCodes.concat([currentSelectedCode])));
-      const data = await fetchRealtimeQuoteScript(fetchList);
-
-      const badge = document.getElementById('db-status-badge');
-      const dot = document.getElementById('status-dot');
-
-      if (!data || Object.keys(data).length === 0) {
-        badge.innerText = "連線重試中";
-        dot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
-        return;
-      }
-
-      badge.innerText = "實時連線中";
-      dot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
-
-      const now = new Date();
-      document.getElementById('last-update-time').innerText = now.toTimeString().split(' ')[0];
-
-      // 1. 每 8 秒記錄/微調當前 3 分鐘點位
-      Object.values(data).forEach(stock => {
-        append3MinRealtimeTick(stock);
-      });
-
-      // 2. 渲染階段一清單 (每 8 秒最新報價)
-      const listContainer = document.getElementById('stock-list');
-      listContainer.innerHTML = '';
-
-      watchListCodes.forEach(code => {
-        const stock = data[code];
-        if (!stock) return;
-
-        const isUp = stock.change >= 0;
-        const colorClass = isUp ? 'hk-up' : 'hk-down';
-        const sign = isUp ? '▲ +' : '▼ ';
-        const rating = evaluateAIRating(stock.buyPct, stock.pct, stock.volumeRatio);
-
-        const cardHtml = `
-          <div onclick="selectStock('${stock.code}')" class="card-bg p-3.5 rounded-xl shadow-lg space-y-2 cursor-pointer hover:border-indigo-500 transition relative">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center space-x-2">
-                <span class="font-bold text-white text-base">${stock.name}</span>
-                <span class="text-xs text-gray-400">HK.${stock.code}</span>
-              </div>
-              <div class="flex items-center space-x-2">
-                <span class="text-xs px-2 py-0.5 rounded font-semibold border ${rating.badgeBg}">${rating.title}</span>
-                <button onclick="handleRemoveWatchlist(event, '${stock.code}')" class="text-gray-500 hover:text-red-400 p-1 text-xs">✕</button>
-              </div>
-            </div>
-            
-            <div class="flex justify-between items-baseline">
-              <div>
-                <span class="text-xl font-black ${colorClass}">$${formatPriceNum(stock.price)}</span>
-                <span class="text-xs font-semibold ${colorClass} ml-2">${sign}${formatPriceNum(stock.change)} (${stock.pct.toFixed(2)}%)</span>
-              </div>
-              <div class="text-xs text-gray-400">成交額: <span class="text-white">${formatAmount(stock.turnover)}</span></div>
-            </div>
-
-            <div class="space-y-1 pt-1">
-              <div class="flex justify-between text-[10px]">
-                <span class="hk-up">主動買盤 ${stock.buyPct}%</span>
-                <span class="text-gray-400">量比 ${stock.volumeRatio.toFixed(1)}x</span>
-                <span class="hk-down">主動沽盤 ${stock.sellPct}%</span>
-              </div>
-              <div class="w-full bg-gray-800 h-2 rounded-full overflow-hidden flex">
-                <div class="bg-hk-up h-full" style="width: ${stock.buyPct}%;"></div>
-                <div class="bg-hk-down h-full" style="width: ${stock.sellPct}%;"></div>
-              </div>
-            </div>
+<script>
+let fullStockDatabase = {};
+let priceChartInstance = null, vwapChartInstance = null;
+let currentSelectedCode = '00700';
+let stockAccumulatedStore = {};
+const DEFAULT_WATCHLIST = ['00700','09988','03690','01810','02800','01211','00981','01024','02342','02015'];
+function getStoredWatchlist(){ const saved=localStorage.getItem('hk_user_watchlist_v1'); if(saved){ try{ const list=JSON.parse(saved); if(Array.isArray(list)&&list.length>0) return list;}catch(e){}} return DEFAULT_WATCHLIST; }
+function saveStoredWatchlist(list){ localStorage.setItem('hk_user_watchlist_v1', JSON.stringify(list)); }
+let watchListCodes = getStoredWatchlist();
+function normalizeCode(code){ if(!code) return ''; let clean=code.toString().trim().replace(/\D/g,''); return clean.padStart(5,'0'); }
+function formatPriceNum(val){ if(typeof val!=='number'||isNaN(val)) return '0.000'; return val.toFixed(3); }
+function formatAmount(val){ const num=parseFloat(val); if(isNaN(num)) return '--'; if(num>=100000000) return (num/100000000).toFixed(2)+'億'; if(num>=10000) return (num/10000).toFixed(0)+'萬'; return num.toFixed(0); }
+function evaluateAIRating(buyPct, changePct, volumeRatio){
+  const isHighVol=volumeRatio>=1.8;
+  if(buyPct>=60&&changePct>=0){ if(isHighVol){ return {title:"🔥 主力強拉 (爆量)",badgeBg:"bg-green-900/80 text-green-300 border-green-500/80",desc:`量比達 ${volumeRatio.toFixed(1)}x 伴隨外盤主動大單強勢吃單，機構資金真金白銀爆量突破！`}; } else { return {title:"🟢 主力買盤",badgeBg:"bg-green-900/50 text-green-300 border-green-500/40",desc:"外盤主動買盤佔優，推升股價溫和上揚，多頭結構良好。"}; }
+  } else if(buyPct>=55&&changePct<0){ return {title:"👁️ 暗中吸籌",badgeBg:"bg-emerald-900/60 text-emerald-300 border-emerald-500/50",desc:"股價受壓回落，但外盤買單持續逆勢低吸，顯現主力逢低建倉痕跡。"}; }
+  else if(buyPct<=40&&changePct<=0){ if(isHighVol){ return {title:"🚨 主力砸盤 (爆量)",badgeBg:"bg-red-900/80 text-red-300 border-red-500/80",desc:`量比達 ${volumeRatio.toFixed(1)}x 伴隨內盤大單恐慌性拋售，資金加速離場！`}; } else { return {title:"🔴 主力沽盤",badgeBg:"bg-red-900/50 text-red-300 border-red-500/40",desc:"內盤主動賣壓沈重，資金流出明顯，短線面臨調整壓力。"}; }
+  } else if(buyPct<=45&&changePct>0){ return {title:"⚠️ 暗中拋籌",badgeBg:"bg-amber-900/60 text-amber-300 border-amber-500/50",desc:"股價暫維持高位，但內盤主動沽單佔比偏高，防範主力拉高誘多派發。"}; }
+  else { return {title:"⚖️ 籌碼博弈",badgeBg:"bg-gray-800 text-gray-300 border-gray-700",desc:"買賣雙方力量拉鋸，成交量平穩，建議觀望等待方向。"}; }
+}
+function calculateRiskRewardScore(stock){
+  const capScore=stock.buyPct; const volScore=Math.min(100,Math.round(stock.volumeRatio*35));
+  const vwapDiffPct=stock.vwap>0?((stock.price-stock.vwap)/stock.vwap)*100:0;
+  let techScore=50+(stock.pct*2.5)+(vwapDiffPct*4); techScore=Math.min(100,Math.max(10,Math.round(techScore)));
+  let totalScore=Math.round((capScore*0.4)+(volScore*0.3)+(techScore*0.3)); totalScore=Math.min(99,Math.max(25,totalScore));
+  let advice=""; if(totalScore>=80) advice="🔥 極高值博率：主力資金強勢入場，短線量價齊揚！"; else if(totalScore>=65) advice="🟢 中高值博率：籌碼面呈淨流入，具備多頭動能。"; else if(totalScore>=45) advice="⚖️ 中性值博率：多空拉鋸，建議觀望待方向。"; else advice="⚠️ 低值博率：主動拋盤顯著，注意下行風險。";
+  return {totalScore,capScore,volScore,techScore,advice};
+}
+window.onload = async () => {
+  lucide.createIcons();
+  await loadStockDatabase();
+  await loadHotStocks();
+  refreshRealtimeData();
+  setInterval(refreshRealtimeData, 8000);
+  setInterval(loadHotStocks, 60000);
+};
+async function loadStockDatabase(){ try{ const res=await fetch('stocks.json?_t='+Date.now()); if(res.ok) fullStockDatabase=await res.json(); }catch(e){} }
+async function loadHotStocks(){
+  try{
+    const res=await fetch('hot_stocks.json?_t='+Date.now());
+    if(!res.ok){ document.getElementById('hot-list').innerHTML='<div class="text-xs text-gray-500 text-center py-3">hot_stocks.json 未生成，請先跑一次 generate_stocks.py V2</div>'; return; }
+    const json=await res.json();
+    const list=json.data||[];
+    document.getElementById('hot-count-top').innerText=`${list.length}隻`;
+    document.getElementById('hot-update-time').innerText=json.update_time||'';
+    const container=document.getElementById('hot-list');
+    container.innerHTML='';
+    if(list.length===0){ container.innerHTML='<div class="text-xs text-gray-500 text-center py-3">暫無異動，市場平靜中</div>'; return; }
+    list.forEach(s=>{
+      const isUp=s.change_pct>=0;
+      const borderClass=s.is_gem?'hot-gem':'hot-main';
+      const badge=s.is_gem?'<span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-900 text-purple-300 border border-purple-700">創業板</span>':'<span class="text-[10px] px-1.5 py-0.5 rounded bg-yellow-900 text-yellow-300 border border-yellow-700">💎金檔異動</span>';
+      const color=isUp?'hk-up':'hk-down';
+      container.innerHTML+=`
+        <div onclick="selectStock('${s.code}')" class="card-bg p-3 rounded-xl border-2 ${borderClass} cursor-pointer hover:scale-[1.01] transition space-y-1">
+          <div class="flex justify-between items-center">
+            <div class="flex items-center space-x-2"><span class="font-bold text-white text-sm">${s.name}</span><span class="text-[11px] text-gray-400">HK.${s.code}</span>${badge}</div>
+            <span class="text-sm font-black ${color}">${isUp?'▲ +':'▼ '}${s.change_pct}%</span>
           </div>
-        `;
-        listContainer.innerHTML += cardHtml;
-      });
-      lucide.createIcons();
-
-      // 3. 同步更新階段二詳情
-      if (currentSelectedCode && data[currentSelectedCode]) {
-        updateDetailCard(data[currentSelectedCode]);
-      }
-    }
-
-    async function selectStock(rawCode) {
-      const code = normalizeCode(rawCode);
-      if (!code) return;
-      currentSelectedCode = code;
-
-      const quotes = await fetchRealtimeQuoteScript([code]);
-      if (quotes && quotes[code] && quotes[code].price > 0) {
-        append3MinRealtimeTick(quotes[code]);
-        updateDetailCard(quotes[code]);
-        switchTab(2);
-      } else {
-        alert("無法獲取該股票實時行情，請確認股票代號。");
-      }
-    }
-
-    // 💡 核心算法：以 3 分鐘為時間槽（Slot）追加/更新數據點
-    function append3MinRealtimeTick(stock) {
-      const code = stock.code;
-      if (!stock.price || stock.price <= 0) return;
-
-      const now = new Date();
-      // 將時間取整至最近的 3 分鐘單位（如 10:00, 10:03, 10:06）
-      const roundedMin = Math.floor(now.getMinutes() / 3) * 3;
-      const slotTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(roundedMin).padStart(2, '0')}`;
-
-      if (!stockAccumulatedStore[code]) {
-        stockAccumulatedStore[code] = [];
-        const openP = stock.open > 0 ? stock.open : stock.prevClose;
-        const lowP = stock.low > 0 ? stock.low : Math.min(openP, stock.price);
-        const highP = stock.high > 0 ? stock.high : Math.max(openP, stock.price);
-        const vwapP = stock.vwap > 0 ? stock.vwap : stock.price;
-
-        const t2 = new Date(now.getTime() - 6 * 60000);
-        const t2Str = `${String(t2.getHours()).padStart(2, '0')}:${String(Math.floor(t2.getMinutes()/3)*3).padStart(2, '0')}`;
-        const t1 = new Date(now.getTime() - 3 * 60000);
-        const t1Str = `${String(t1.getHours()).padStart(2, '0')}:${String(Math.floor(t1.getMinutes()/3)*3).padStart(2, '0')}`;
-
-        stockAccumulatedStore[code].push({ time: t2Str, price: lowP, vwap: (openP + vwapP)/2 });
-        stockAccumulatedStore[code].push({ time: t1Str, price: highP, vwap: vwapP });
-      }
-
-      const history = stockAccumulatedStore[code];
-      const lastEntry = history[history.length - 1];
-
-      // 若跨越到新的 3 分鐘時段，追加新點位；否則即時更新當前 3 分鐘時段內的最新價
-      if (!lastEntry || lastEntry.time !== slotTimeStr) {
-        history.push({
-          time: slotTimeStr,
-          price: stock.price,
-          vwap: stock.vwap > 0 ? stock.vwap : stock.price
-        });
-      } else {
-        lastEntry.price = stock.price;
-        lastEntry.vwap = stock.vwap > 0 ? stock.vwap : stock.price;
-      }
-
-      if (history.length > 25) {
-        history.shift();
-      }
-    }
-
-    // 更新階段二詳情
-    function updateDetailCard(stock) {
-      const category = fullStockDatabase[stock.code] ? fullStockDatabase[stock.code].category : '港股證券';
-
-      document.getElementById('stock-name').innerText = stock.name;
-      document.getElementById('stock-code').innerText = `HK.${stock.code} · 實時行情`;
-      document.getElementById('stock-category-badge').innerText = category;
-      
-      const isUp = stock.change >= 0;
-      const priceElem = document.getElementById('stock-price');
-      const changeElem = document.getElementById('stock-change');
-
-      priceElem.innerText = `$${formatPriceNum(stock.price)}`;
-      priceElem.className = `text-2xl font-black ${isUp ? 'hk-up' : 'hk-down'}`;
-
-      changeElem.innerText = `${isUp ? '▲ +' : '▼ '}${formatPriceNum(stock.change)} (${stock.pct.toFixed(2)}%)`;
-      changeElem.className = `text-xs font-semibold ${isUp ? 'hk-up' : 'hk-down'}`;
-
-      document.getElementById('prev-close').innerText = `$${formatPriceNum(stock.prevClose)}`;
-      document.getElementById('open-price').innerText = `$${formatPriceNum(stock.open)}`;
-      document.getElementById('high-price').innerText = `$${formatPriceNum(stock.high)}`;
-      document.getElementById('low-price').innerText = `$${formatPriceNum(stock.low)}`;
-
-      document.getElementById('buy-pct').innerText = `${stock.buyPct}%`;
-      document.getElementById('sell-pct').innerText = `${stock.sellPct}%`;
-      document.getElementById('vol-ratio-disp').innerText = `${stock.volumeRatio.toFixed(1)}x`;
-      document.getElementById('buy-bar').style.width = `${stock.buyPct}%`;
-      document.getElementById('sell-bar').style.width = `${stock.sellPct}%`;
-
-      // AI 主力評級
-      const rating = evaluateAIRating(stock.buyPct, stock.pct, stock.volumeRatio);
-      const ratingBadge = document.getElementById('ai-status-badge');
-      ratingBadge.innerText = rating.title;
-      ratingBadge.className = `px-2.5 py-1 rounded text-xs font-bold border ${rating.badgeBg}`;
-      document.getElementById('ai-rating-desc').innerText = rating.desc;
-
-      // AI 實時值博分數
-      const rr = calculateRiskRewardScore(stock);
-      document.getElementById('ai-score').innerText = `${rr.totalScore} 分`;
-      document.getElementById('risk-reward-advice').innerText = rr.advice;
-      document.getElementById('score-capital').innerText = `${rr.capScore} 分`;
-      document.getElementById('score-momentum').innerText = `${rr.volScore} 分`;
-      document.getElementById('score-tech').innerText = `${rr.techScore} 分`;
-
-      // 繪製雙圖表 (3分鐘結構 + 0.005刻度)
-      const history = stockAccumulatedStore[stock.code];
-      if (history && history.length > 0) {
-        renderSplitCharts(history);
-      }
-    }
-
-    // 💡 繪製雙圖表：Y 軸刻度嚴格對齊 0.005 單位
-    function renderSplitCharts(history) {
-      if (!history || history.length === 0) return;
-
-      const labels = history.map(h => h.time);
-      const prices = history.map(h => h.price).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
-      const vwaps = history.map(h => h.vwap).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
-
-      if (prices.length === 0) return;
-
-      // -------------------------------------------------------------
-      // 📊 圖表一：股價走勢圖 (以 0.005 為變動步長對齊)
-      // -------------------------------------------------------------
-      let minP = Math.min(...prices);
-      let maxP = Math.max(...prices);
-
-      if (minP === maxP) {
-        minP = minP - 0.01;
-        maxP = maxP + 0.01;
-      }
-
-      minP = Math.floor((minP - 0.005) / 0.005) * 0.005;
-      maxP = Math.ceil((maxP + 0.005) / 0.005) * 0.005;
-
-      const ctxPrice = document.getElementById('priceChart').getContext('2d');
-      if (priceChartInstance) priceChartInstance.destroy();
-
-      priceChartInstance = new Chart(ctxPrice, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: '實時現價',
-            data: history.map(h => h.price),
-            borderColor: '#FFFFFF',
-            backgroundColor: 'rgba(255, 255, 255, 0.06)',
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: '#FFFFFF',
-            fill: true,
-            tension: 0.15
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: { duration: 200 },
-          plugins: { legend: { display: false } },
-          scales: {
-            x: {
-              grid: { color: '#1F2937' },
-              ticks: { color: '#9CA3AF', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }
-            },
-            y: {
-              beginAtZero: false,
-              min: parseFloat(minP.toFixed(3)),
-              max: parseFloat(maxP.toFixed(3)),
-              grid: { color: '#1F2937' },
-              ticks: { 
-                color: '#9CA3AF', 
-                font: { size: 10 },
-                stepSize: 0.005,
-                callback: function(val) { return Number(val).toFixed(3); }
-              }
-            }
-          }
-        }
-      });
-
-      // -------------------------------------------------------------
-      // 📊 圖表二：VWAP 成本線圖 (以 0.005 為變動步長對齊)
-      // -------------------------------------------------------------
-      let minV = vwaps.length > 0 ? Math.min(...vwaps) : minP;
-      let maxV = vwaps.length > 0 ? Math.max(...vwaps) : maxP;
-
-      if (minV === maxV) {
-        minV = minV - 0.01;
-        maxV = maxV + 0.01;
-      }
-
-      minV = Math.floor((minV - 0.005) / 0.005) * 0.005;
-      maxV = Math.ceil((maxV + 0.005) / 0.005) * 0.005;
-
-      const ctxVWAP = document.getElementById('vwapChart').getContext('2d');
-      if (vwapChartInstance) vwapChartInstance.destroy();
-
-      vwapChartInstance = new Chart(ctxVWAP, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'VWAP 成本線',
-            data: history.map(h => h.vwap),
-            borderColor: '#F59E0B',
-            backgroundColor: 'rgba(245, 158, 11, 0.08)',
-            borderWidth: 2,
-            borderDash: [3, 3],
-            pointRadius: 2,
-            pointBackgroundColor: '#F59E0B',
-            fill: true,
-            tension: 0.15
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: { duration: 200 },
-          plugins: { legend: { display: false } },
-          scales: {
-            x: {
-              grid: { color: '#1F2937' },
-              ticks: { color: '#9CA3AF', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }
-            },
-            y: {
-              beginAtZero: false,
-              min: parseFloat(minV.toFixed(3)),
-              max: parseFloat(maxV.toFixed(3)),
-              grid: { color: '#1F2937' },
-              ticks: { 
-                color: '#9CA3AF', 
-                font: { size: 10 },
-                stepSize: 0.005,
-                callback: function(val) { return Number(val).toFixed(3); }
-              }
-            }
-          }
-        }
-      });
-    }
-
-    function handleSearch() {
-      const val = document.getElementById('search-input').value.trim();
-      if (val) selectStock(val);
-    }
-  </script>
-</body>
-</html>
+          <div class="flex justify-between text-[11px]"><span class="text-gray-300">${s.reason}</span><span class="text-gray-400">量比 <b class="text-white">${s.vol_ratio}x</b> | <span class="text-white">${formatAmount(s.turnover)}</span></span></div>
+        </div>`;
+    });
+    lucide.createIcons();
+  }catch(e){ console.log(e); }
+}
+function updateWatchlistCounter(){ document.getElementById('watchlist-count').innerText=`${watchListCodes.length}/10`; }
+function switchTab(tabNum){
+  if(tabNum===1){ document.getElementById('tab1-content').classList.remove('hidden'); document.getElementById('tab2-content').classList.add('hidden'); document.getElementById('tab1-btn').className="flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition"; document.getElementById('tab2-btn').className="flex-1 py-2 text-sm font-medium rounded-md text-gray-400 transition"; }
+  else { document.getElementById('tab2-content').classList.remove('hidden'); document.getElementById('tab1-content').classList.add('hidden'); document.getElementById('tab2-btn').className="flex-1 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white transition"; document.getElementById('tab1-btn').className="flex-1 py-2 text-sm font-medium rounded-md text-gray-400 transition"; }
+}
+function handleAddWatchlist(){ const input=document.getElementById('add-watchlist-input'); const code=normalizeCode(input.value); if(!code){ alert("請輸入正確代號"); return; } if(watchListCodes.includes(code)){ alert("已在監測名單"); return; } if(watchListCodes.length>=10){ alert("最多10隻"); return; } watchListCodes.push(code); saveStoredWatchlist(watchListCodes); input.value=''; refreshRealtimeData(); }
+function handleRemoveWatchlist(event, code){ event.stopPropagation(); if(watchListCodes.length<=1){ alert("最少保留1隻"); return; } watchListCodes=watchListCodes.filter(c=>c!==code); saveStoredWatchlist(watchListCodes); refreshRealtimeData(); }
+function fetchRealtimeQuoteScript(codesArray){
+  return new Promise((resolve)=>{
+    const scriptId='realtime-script-loader'; const oldScript=document.getElementById(scriptId); if(oldScript) oldScript.remove();
+    const formattedCodes=codesArray.map(c=>'r_hk'+normalizeCode(c)).join(','); const script=document.createElement('script'); script.id=scriptId; script.src=`https://qt.gtimg.cn/q=${formattedCodes}&_t=${Date.now()}`;
+    script.onload=()=>{
+      const results={}; codesArray.forEach(rawCode=>{ const code=normalizeCode(rawCode); const varName='v_r_hk'+code; const rawData=window[varName]; if(rawData){ const p=rawData.split('~'); const price=parseFloat(p[3])||0; const prevClose=parseFloat(p[4])||0; const open=parseFloat(p[5])||0; const high=parseFloat(p[33])||price; const low=parseFloat(p[34])||price; const turnover=parseFloat(p[37])*10000||0; const change=price-prevClose; const pct=prevClose>0?(change/prevClose)*100:0; let outerVol=parseFloat(p[7])||0; let innerVol=parseFloat(p[8])||0; let totalVol=outerVol+innerVol; let buyPct=50; if(totalVol>0){ buyPct=Math.round((outerVol/totalVol)*100); } else { const bidVol1=parseFloat(p[10])||0; const askVol1=parseFloat(p[20])||0; let posRatio=(high>low&&high>0)?(price-low)/(high-low):0.5; let orderRatio=(bidVol1+askVol1>0)?bidVol1/(bidVol1+askVol1):0.5; let calcBuy=(posRatio*50)+25+(pct*2.5)+((orderRatio-0.5)*20); buyPct=Math.min(88,Math.max(12,Math.round(calcBuy))); } let volRatio=parseFloat(p[49])||parseFloat(p[47])||0; if(volRatio===0||isNaN(volRatio)){ volRatio=turnover>0?parseFloat((turnover/50000000*1.2+0.8).toFixed(1)):1.2; } const totalShares=parseFloat(p[6])*100||1; const vwap=turnover>0&&totalShares>0?(turnover/totalShares):price; results[code]={code:code,name:p[1]||(fullStockDatabase[code]?fullStockDatabase[code].name:`港股 (${code})`),price:price,prevClose:prevClose,open:open,high:high,low:low,change:change,pct:pct,turnover:turnover,buyPct:buyPct,sellPct:100-buyPct,volumeRatio:volRatio,vwap:vwap}; } }); resolve(results);
+    }; script.onerror=()=>{ resolve(null); }; document.body.appendChild(script);
+  });
+}
+async function refreshRealtimeData(){
+  updateWatchlistCounter();
+  const fetchList=Array.from(new Set(watchListCodes.concat([currentSelectedCode])));
+  const data=await fetchRealtimeQuoteScript(fetchList);
+  const badge=document.getElementById('db-status-badge'); const dot=document.getElementById('status-dot');
+  if(!data||Object.keys(data).length===0){ badge.innerText="連線重試中"; dot.className="w-2 h-2 rounded-full bg-red-500 animate-pulse"; return; }
+  badge.innerText="實時連線中"; dot.className="w-2 h-2 rounded-full bg-green-500 animate-pulse";
+  const now=new Date(); document.getElementById('last-update-time').innerText=now.toTimeString().split(' ')[0];
+  Object.values(data).forEach(stock=>{ append3MinRealtimeTick(stock); });
+  const listContainer=document.getElementById('stock-list'); listContainer.innerHTML='';
+  watchListCodes.forEach(code=>{ const stock=data[code]; if(!stock) return; const isUp=stock.change>=0; const colorClass=isUp?'hk-up':'hk-down'; const sign=isUp?'▲ +':'▼ '; const rating=evaluateAIRating(stock.buyPct,stock.pct,stock.volumeRatio);
+    const cardHtml=`<div onclick="selectStock('${stock.code}')" class="card-bg p-3.5 rounded-xl shadow-lg space-y-2 cursor-pointer hover:border-indigo-500 transition relative"><div class="flex justify-between items-center"><div class="flex items-center space-x-2"><span class="font-bold text-white text-base">${stock.name}</span><span class="text-xs text-gray-400">HK.${stock.code}</span></div><div class="flex items-center space-x-2"><span class="text-xs px-2 py-0.5 rounded font-semibold border ${rating.badgeBg}">${rating.title}</span><button onclick="handleRemoveWatchlist(event, '${stock.code}')" class="text-gray-500 hover:text-red-400 p-1 text-xs">✕</button></div></div><div class="flex justify-between items-baseline"><div><span class="text-xl font-black ${colorClass}">$${formatPriceNum(stock.price)}</span><span class="text-xs font-semibold ${colorClass} ml-2">${sign}${formatPriceNum(stock.change)} (${stock.pct.toFixed(2)}%)</span></div><div class="text-xs text-gray-400">成交額: <span class="text-white">${formatAmount(stock.turnover)}</span></div></div><div class="space-y-1 pt-1"><div class="flex justify-between text-[10px]"><span class="hk-up">主動買盤 ${stock.buyPct}%</span><span class="text-gray-400">量比 ${stock.volumeRatio.toFixed(1)}x</span><span class="hk-down">主動沽盤 ${stock.sellPct}%</span></div><div class="w-full bg-gray-800 h-2 rounded-full overflow-hidden flex"><div class="bg-hk-up h-full" style="width: ${stock.buyPct}%;"></div><div class="bg-hk-down h-full" style="width: ${stock.sellPct}%;"></div></div></div></div>`;
+    listContainer.innerHTML+=cardHtml;
+  });
+  lucide.createIcons();
+  if(currentSelectedCode&&data[currentSelectedCode]){ updateDetailCard(data[currentSelectedCode]); }
+}
+async function selectStock(rawCode){ const code=normalizeCode(rawCode); if(!code) return; currentSelectedCode=code; const quotes=await fetchRealtimeQuoteScript([code]); if(quotes&&quotes[code]&&quotes[code].price>0){ append3MinRealtimeTick(quotes[code]); updateDetailCard(quotes[code]); switchTab(
