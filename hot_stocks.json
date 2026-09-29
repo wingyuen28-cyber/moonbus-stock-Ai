@@ -1,68 +1,41 @@
 {
-  "update_time": "2026-09-28 19:46:45",
-  "count": 7,
+  "update_time": "2026-09-29 01:16:08",
+  "count": 4,
   "data": [
     {
-      "code": "02342",
-      "name": "航標控股",
+      "code": "09988",
+      "name": "阿里巴巴-W",
       "category": "港股主板",
-      "change_pct": -5.73,
-      "vol_ratio": 5.9,
-      "reason": "急跌 5.73% | 振幅擴大 | 資金關注",
+      "change_pct": -2.04,
+      "vol_ratio": 1.5,
+      "reason": "急跌 2.04% | 振幅擴大 | 資金關注",
       "is_gem": false
-    },
-    {
-      "code": "00981",
-      "name": "中芯國際",
-      "category": "港股主板",
-      "change_pct": -3.63,
-      "vol_ratio": 3.4,
-      "reason": "急跌 3.63% | 振幅擴大 | 資金關注",
-      "is_gem": false
-    },
-    {
-      "code": "08447",
-      "name": "MS CONCEPT",
-      "category": "創業板 (GEM)",
-      "change_pct": -1.35,
-      "vol_ratio": 0.6,
-      "reason": "急跌 1.35% | 振幅擴大 | 資金關注",
-      "is_gem": true
     },
     {
       "code": "00700",
       "name": "騰訊控股",
       "category": "港股主板",
-      "change_pct": 0.73,
-      "vol_ratio": 1.9,
-      "reason": "急升 0.73% | 振幅擴大 | 資金關注",
+      "change_pct": -1.46,
+      "vol_ratio": 0.7,
+      "reason": "急跌 1.46% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
-      "code": "02800",
-      "name": "盈富基金",
-      "category": "ETF",
-      "change_pct": 0.72,
-      "vol_ratio": 1.9,
-      "reason": "急升 0.72% | 振幅擴大 | 資金關注",
-      "is_gem": false
-    },
-    {
-      "code": "09988",
-      "name": "阿里巴巴-W",
+      "code": "03690",
+      "name": "美團-W",
       "category": "港股主板",
-      "change_pct": -0.65,
-      "vol_ratio": 0.2,
-      "reason": "急跌 0.65% | 振幅擴大 | 資金關注",
+      "change_pct": 1.04,
+      "vol_ratio": 2.3,
+      "reason": "急升 1.04% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
-      "code": "01211",
-      "name": "比亞迪股份",
+      "code": "01810",
+      "name": "小米集團",
       "category": "港股主板",
-      "change_pct": -0.51,
-      "vol_ratio": 0.4,
-      "reason": "急跌 0.51% | 振幅擴大 | 資金關注",
+      "change_pct": -0.77,
+      "vol_ratio": 0.1,
+      "reason": "急跌 0.77% | 振幅擴大 | 資金關注",
       "is_gem": false
     }
   ]
