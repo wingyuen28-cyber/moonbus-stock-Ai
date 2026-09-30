@@ -1,6 +1,6 @@
 {
-  "update_time": "2026-09-30 04:17:52",
-  "count": 6,
+  "update_time": "2026-09-30 07:18:26",
+  "count": 5,
   "data": [
     {
       "code": "02342",
@@ -24,36 +24,27 @@
       "code": "03690",
       "name": "美團-W",
       "category": "港股主板",
-      "change_pct": 2.34,
-      "vol_ratio": 3.8,
-      "reason": "急升 2.34% | 振幅擴大 | 資金關注",
+      "change_pct": 1.85,
+      "vol_ratio": 3.2,
+      "reason": "急升 1.85% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
       "code": "00981",
       "name": "中芯國際",
       "category": "港股主板",
-      "change_pct": -0.98,
-      "vol_ratio": 0.2,
-      "reason": "急跌 0.98% | 振幅擴大 | 資金關注",
+      "change_pct": -0.82,
+      "vol_ratio": 0.0,
+      "reason": "急跌 0.82% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
-      "code": "00700",
-      "name": "騰訊控股",
+      "code": "01810",
+      "name": "小米集團",
       "category": "港股主板",
-      "change_pct": -0.97,
-      "vol_ratio": 0.2,
-      "reason": "急跌 0.97% | 振幅擴大 | 資金關注",
-      "is_gem": false
-    },
-    {
-      "code": "01211",
-      "name": "比亞迪股份",
-      "category": "港股主板",
-      "change_pct": -0.53,
-      "vol_ratio": 0.4,
-      "reason": "急跌 0.53% | 振幅擴大 | 資金關注",
+      "change_pct": 0.56,
+      "vol_ratio": 1.7,
+      "reason": "急升 0.56% | 振幅擴大 | 資金關注",
       "is_gem": false
     }
   ]
