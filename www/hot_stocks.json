@@ -1,41 +1,59 @@
 {
-  "update_time": "2026-09-30 01:16:47",
-  "count": 4,
+  "update_time": "2026-09-30 04:17:52",
+  "count": 6,
   "data": [
     {
-      "code": "01211",
-      "name": "比亞迪股份",
+      "code": "02342",
+      "name": "航標控股",
       "category": "港股主板",
-      "change_pct": -2.24,
-      "vol_ratio": 1.7,
-      "reason": "急跌 2.24% | 振幅擴大 | 資金關注",
+      "change_pct": -7.98,
+      "vol_ratio": 8.6,
+      "reason": "急跌 7.98% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
-      "code": "01810",
-      "name": "小米集團",
-      "category": "港股主板",
-      "change_pct": 1.27,
-      "vol_ratio": 2.5,
-      "reason": "急升 1.27% | 振幅擴大 | 資金關注",
-      "is_gem": false
-    },
-    {
-      "code": "09988",
-      "name": "阿里巴巴-W",
-      "category": "港股主板",
-      "change_pct": -1.04,
-      "vol_ratio": 0.2,
-      "reason": "急跌 1.04% | 振幅擴大 | 資金關注",
-      "is_gem": false
+      "code": "08447",
+      "name": "MS CONCEPT",
+      "category": "創業板 (GEM)",
+      "change_pct": 5.26,
+      "vol_ratio": 7.3,
+      "reason": "急升 5.26% | 振幅擴大 | 資金關注",
+      "is_gem": true
     },
     {
       "code": "03690",
       "name": "美團-W",
       "category": "港股主板",
-      "change_pct": -0.57,
-      "vol_ratio": 0.3,
-      "reason": "急跌 0.57% | 振幅擴大 | 資金關注",
+      "change_pct": 2.34,
+      "vol_ratio": 3.8,
+      "reason": "急升 2.34% | 振幅擴大 | 資金關注",
+      "is_gem": false
+    },
+    {
+      "code": "00981",
+      "name": "中芯國際",
+      "category": "港股主板",
+      "change_pct": -0.98,
+      "vol_ratio": 0.2,
+      "reason": "急跌 0.98% | 振幅擴大 | 資金關注",
+      "is_gem": false
+    },
+    {
+      "code": "00700",
+      "name": "騰訊控股",
+      "category": "港股主板",
+      "change_pct": -0.97,
+      "vol_ratio": 0.2,
+      "reason": "急跌 0.97% | 振幅擴大 | 資金關注",
+      "is_gem": false
+    },
+    {
+      "code": "01211",
+      "name": "比亞迪股份",
+      "category": "港股主板",
+      "change_pct": -0.53,
+      "vol_ratio": 0.4,
+      "reason": "急跌 0.53% | 振幅擴大 | 資金關注",
       "is_gem": false
     }
   ]
