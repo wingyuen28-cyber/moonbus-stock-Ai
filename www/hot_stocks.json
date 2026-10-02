@@ -1,50 +1,68 @@
 {
-  "update_time": "2026-10-02 01:16:45",
-  "count": 5,
+  "update_time": "2026-10-02 04:17:34",
+  "count": 7,
   "data": [
     {
-      "code": "09988",
-      "name": "阿里巴巴-W",
+      "code": "02342",
+      "name": "航標控股",
       "category": "港股主板",
-      "change_pct": -2.91,
-      "vol_ratio": 2.5,
-      "reason": "急跌 2.91% | 振幅擴大 | 資金關注",
-      "is_gem": false
-    },
-    {
-      "code": "00700",
-      "name": "騰訊控股",
-      "category": "港股主板",
-      "change_pct": -2.55,
-      "vol_ratio": 2.1,
-      "reason": "急跌 2.55% | 振幅擴大 | 資金關注",
+      "change_pct": -5.05,
+      "vol_ratio": 5.1,
+      "reason": "急跌 5.05% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
       "code": "01810",
       "name": "小米集團",
       "category": "港股主板",
-      "change_pct": -2.38,
-      "vol_ratio": 1.9,
-      "reason": "急跌 2.38% | 振幅擴大 | 資金關注",
+      "change_pct": -4.52,
+      "vol_ratio": 4.4,
+      "reason": "急跌 4.52% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
-      "code": "02342",
-      "name": "航標控股",
+      "code": "02800",
+      "name": "盈富基金",
+      "category": "ETF",
+      "change_pct": -2.61,
+      "vol_ratio": 2.1,
+      "reason": "急跌 2.61% | 振幅擴大 | 資金關注",
+      "is_gem": false
+    },
+    {
+      "code": "01211",
+      "name": "比亞迪股份",
       "category": "港股主板",
-      "change_pct": 1.01,
-      "vol_ratio": 2.2,
-      "reason": "急升 1.01% | 振幅擴大 | 資金關注",
+      "change_pct": -2.31,
+      "vol_ratio": 1.8,
+      "reason": "急跌 2.31% | 振幅擴大 | 資金關注",
+      "is_gem": false
+    },
+    {
+      "code": "09988",
+      "name": "阿里巴巴-W",
+      "category": "港股主板",
+      "change_pct": -2.25,
+      "vol_ratio": 1.7,
+      "reason": "急跌 2.25% | 振幅擴大 | 資金關注",
       "is_gem": false
     },
     {
       "code": "03690",
       "name": "美團-W",
       "category": "港股主板",
-      "change_pct": -0.98,
-      "vol_ratio": 0.2,
-      "reason": "急跌 0.98% | 振幅擴大 | 資金關注",
+      "change_pct": -2.16,
+      "vol_ratio": 1.6,
+      "reason": "急跌 2.16% | 振幅擴大 | 資金關注",
+      "is_gem": false
+    },
+    {
+      "code": "00700",
+      "name": "騰訊控股",
+      "category": "港股主板",
+      "change_pct": -2.09,
+      "vol_ratio": 1.5,
+      "reason": "急跌 2.09% | 振幅擴大 | 資金關注",
       "is_gem": false
     }
   ]
