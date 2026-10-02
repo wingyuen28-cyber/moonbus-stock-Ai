@@ -1,41 +1,50 @@
 {
-  "update_time": "2026-10-01 07:18:50",
-  "count": 4,
+  "update_time": "2026-10-02 01:16:45",
+  "count": 5,
   "data": [
+    {
+      "code": "09988",
+      "name": "阿里巴巴-W",
+      "category": "港股主板",
+      "change_pct": -2.91,
+      "vol_ratio": 2.5,
+      "reason": "急跌 2.91% | 振幅擴大 | 資金關注",
+      "is_gem": false
+    },
+    {
+      "code": "00700",
+      "name": "騰訊控股",
+      "category": "港股主板",
+      "change_pct": -2.55,
+      "vol_ratio": 2.1,
+      "reason": "急跌 2.55% | 振幅擴大 | 資金關注",
+      "is_gem": false
+    },
+    {
+      "code": "01810",
+      "name": "小米集團",
+      "category": "港股主板",
+      "change_pct": -2.38,
+      "vol_ratio": 1.9,
+      "reason": "急跌 2.38% | 振幅擴大 | 資金關注",
+      "is_gem": false
+    },
     {
       "code": "02342",
       "name": "航標控股",
       "category": "港股主板",
-      "change_pct": -7.04,
-      "vol_ratio": 7.5,
-      "reason": "急跌 7.04% | 振幅擴大 | 資金關注",
+      "change_pct": 1.01,
+      "vol_ratio": 2.2,
+      "reason": "急升 1.01% | 振幅擴大 | 資金關注",
       "is_gem": false
-    },
-    {
-      "code": "08447",
-      "name": "MS CONCEPT",
-      "category": "創業板 (GEM)",
-      "change_pct": 6.58,
-      "vol_ratio": 8.9,
-      "reason": "急升 6.58% | 振幅擴大 | 資金關注",
-      "is_gem": true
     },
     {
       "code": "03690",
       "name": "美團-W",
       "category": "港股主板",
-      "change_pct": 1.77,
-      "vol_ratio": 3.1,
-      "reason": "急升 1.77% | 振幅擴大 | 資金關注",
-      "is_gem": false
-    },
-    {
-      "code": "00981",
-      "name": "中芯國際",
-      "category": "港股主板",
-      "change_pct": -0.66,
+      "change_pct": -0.98,
       "vol_ratio": 0.2,
-      "reason": "急跌 0.66% | 振幅擴大 | 資金關注",
+      "reason": "急跌 0.98% | 振幅擴大 | 資金關注",
       "is_gem": false
     }
   ]
