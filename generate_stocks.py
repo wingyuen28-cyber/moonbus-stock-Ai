@@ -237,10 +237,11 @@ def main():
             json.dump(STOCKS, f, ensure_ascii=False, indent=2)
 
         out = {
-            "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "count": len(hot),
-            "data": hot
-        }
+    "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+    "indices": fetch_indices(),  # <-- 新增這行三大指數數據
+    "count": len(hot),
+    "data": hot
+}
 
         with open("hot_stocks.json", "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, indent=2)
