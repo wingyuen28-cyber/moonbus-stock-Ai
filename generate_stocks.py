@@ -41,12 +41,6 @@ STOCKS = {
 }
 
 def fetch_batch_detail(codes):
-    """
-    抓取完整的騰訊 API 盤口數據：
-    p[3]:現價, p[4]:昨收, p[5]:今開, p[6]:成交量(股), p[33]:最高, p[34]:最低, p[37]:成交額(HKD)
-    p[9..13]:買一至買五價格, p[19..23]:買一至買五股數
-    p[29..33]:賣一至賣五價格, p[39..43]:賣一至賣五股數
-    """
     try:
         q = ",".join([f"r_hk{c}" for c in codes])
         url = f"https://qt.gtimg.cn/q={q}"
@@ -73,7 +67,6 @@ def fetch_batch_detail(codes):
                 amt = float(p[37]) if p[37] else 0.0
                 pct = ((price - prev) / prev) * 100.0
 
-                # 計算買賣盤委比
                 b_sum = 0.0
                 a_sum = 0.0
                 for i in range(5):
@@ -110,7 +103,6 @@ def main():
     try:
         quotes = {}
         codes = list(STOCKS.keys())
-        # 每 20 隻一包進行批次請求
         for i in range(0, len(codes), 20):
             batch = codes[i:i+20]
             quotes.update(fetch_batch_detail(batch))
@@ -123,14 +115,12 @@ def main():
             amt = q["amount"]
             range_pct = q["range_pct"]
 
-            # 異動觸發門檻：漲跌幅 >= 0.8% 或 委比極端 (>40% / <-40%) 或 振幅 > 3%
+            # 即市異動條件
             if abs(pct) >= 0.8 or abs(weibi) >= 40 or range_pct >= 3.0:
-                # 算綜合異動得分 (交叉驗證)
                 score = abs(pct) * 3 + (range_pct * 1.5) + (abs(weibi) * 0.2)
-                if amt > 1e8: score += 10 # 巨額加分
+                if amt > 1e8: score += 10
                 elif amt > 1e7: score += 5
 
-                # 生成分析結論
                 if weibi > 30 and pct > 0:
                     reason = f"主買積壓 (委比{weibi:.0f}%) | 漲幅 {pct:.2f}%"
                 elif weibi < -30 and pct < 0:
@@ -153,12 +143,28 @@ def main():
                     "is_gem": "創業板" in STOCKS[code]["category"]
                 })
 
-        # 按異動綜合得分由高到低排序，選出 Top 30
-        hot = sorted(hot, key=lambda x: x["score"], reverse=True)[:30]
+        # 【保底機制】：若休市或無任何異動，自動挑選預設熱門股，防止 data 為空
+        if not hot:
+            for code, q in quotes.items():
+                hot.append({
+                    "code": code,
+                    "name": STOCKS[code]["name"],
+                    "category": STOCKS[code]["category"],
+                    "change_pct": round(q["pct"], 2),
+                    "amount": q["amount"],
+                    "weibi": round(q["weibi"], 1),
+                    "range_pct": round(q["range_pct"], 2),
+                    "score": 10.0,
+                    "reason": f"休市靜態展示 | 現價 ${q['price']:.2f}",
+                    "is_gem": "創業板" in STOCKS[code]["category"]
+                })
+            # 按成交量或預設順序挑選 15 隻
+            hot = sorted(hot, key=lambda x: x["amount"], reverse=True)[:15]
+        else:
+            hot = sorted(hot, key=lambda x: x["score"], reverse=True)[:30]
 
         os.makedirs("www", exist_ok=True)
         
-        # 寫入通用股票字典
         with open("stocks.json", "w", encoding="utf-8") as f:
             json.dump(STOCKS, f, ensure_ascii=False, indent=2)
 
@@ -168,14 +174,13 @@ def main():
             "data": hot
         }
 
-        # 同步寫入根目錄與 www 目錄
         with open("hot_stocks.json", "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, indent=2)
 
         with open("www/hot_stocks.json", "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, indent=2)
 
-        print(f"SUCCESS: Generated {len(hot)} anomaly stocks.")
+        print(f"SUCCESS: Generated {len(hot)} stocks.")
 
     except Exception as e:
         print(f"Error executing script: {e}")
