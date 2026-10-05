@@ -40,56 +40,6 @@ STOCKS = {
     "08271": {"name": "環球戰略集團", "category": "創業板 (GEM)"}
 }
 
-def fetch_indices():
-    """專門抓取三大指數數據"""
-    url = "https://qt.gtimg.cn/q=r_hkHSI,r_hkHSTECH,sh000001"
-    indices = []
-    
-    # 休市或失敗時的保底數據
-    fallback_indices = [
-        {"name": "恒生指數", "symbol": "HSI", "price": 20850.12, "change": +120.5, "pct": +0.58},
-        {"name": "恒生科技", "symbol": "HSTECH", "price": 4580.30, "change": +35.2, "pct": +0.77},
-        {"name": "上證指數", "symbol": "SSEC", "price": 3350.88, "change": -5.1, "pct": -0.15}
-    ]
-    
-    try:
-        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
-        txt = resp.text
-        
-        # 解析恒指
-        m_hsi = re.search(r'v_r_hkHSI="(.*)"', txt)
-        if m_hsi:
-            p = m_hsi.group(1).split('~')
-            price, prev = float(p[3]), float(p[4])
-            diff = price - prev
-            pct = (diff / prev * 100) if prev > 0 else 0
-            indices.append({"name": "恒生指數", "symbol": "HSI", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
-
-        # 解析恒科指
-        m_tech = re.search(r'v_r_hkHSTECH="(.*)"', txt)
-        if m_tech:
-            p = m_tech.group(1).split('~')
-            price, prev = float(p[3]), float(p[4])
-            diff = price - prev
-            pct = (diff / prev * 100) if prev > 0 else 0
-            indices.append({"name": "恒生科技", "symbol": "HSTECH", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
-
-        # 解析上證指數
-        m_sh = re.search(r'v_sh000001="(.*)"', txt)
-        if m_sh:
-            p = m_sh.group(1).split('~')
-            price, diff, pct = float(p[3]), float(p[4]), float(p[5])
-            indices.append({"name": "上證指數", "symbol": "SSEC", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
-
-    except Exception as e:
-        print(f"Index fetch error: {e}")
-
-    # 若 API 無數據（如休市），使用保底數據
-    if len(indices) < 3:
-        return fallback_indices
-        
-    return indices
-
 def fetch_batch_detail(codes):
     try:
         q = ",".join([f"r_hk{c}" for c in codes])
@@ -165,6 +115,51 @@ def make_fallback_data():
         })
     return fallback
 
+def fetch_indices():
+    """抓取恒指、恒科、上證指數數據"""
+    url = "https://qt.gtimg.cn/q=r_hkHSI,r_hkHSTECH,sh000001"
+    indices = []
+    
+    fallback_indices = [
+        {"name": "恒生指數", "symbol": "HSI", "price": 20850.12, "change": 120.5, "pct": 0.58},
+        {"name": "恒生科技", "symbol": "HSTECH", "price": 4580.30, "change": 35.2, "pct": 0.77},
+        {"name": "上證指數", "symbol": "SSEC", "price": 3350.88, "change": -5.1, "pct": -0.15}
+    ]
+    
+    try:
+        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+        txt = resp.text
+        
+        m_hsi = re.search(r'v_r_hkHSI="(.*)"', txt)
+        if m_hsi:
+            p = m_hsi.group(1).split('~')
+            price, prev = float(p[3]), float(p[4])
+            diff = price - prev
+            pct = (diff / prev * 100) if prev > 0 else 0
+            indices.append({"name": "恒生指數", "symbol": "HSI", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
+
+        m_tech = re.search(r'v_r_hkHSTECH="(.*)"', txt)
+        if m_tech:
+            p = m_tech.group(1).split('~')
+            price, prev = float(p[3]), float(p[4])
+            diff = price - prev
+            pct = (diff / prev * 100) if prev > 0 else 0
+            indices.append({"name": "恒生科技", "symbol": "HSTECH", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
+
+        m_sh = re.search(r'v_sh000001="(.*)"', txt)
+        if m_sh:
+            p = m_sh.group(1).split('~')
+            price, diff, pct = float(p[3]), float(p[4]), float(p[5])
+            indices.append({"name": "上證指數", "symbol": "SSEC", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
+
+    except Exception as e:
+        print(f"Index fetch error: {e}")
+
+    if len(indices) < 3:
+        return fallback_indices
+        
+    return indices
+
 def main():
     try:
         quotes = {}
@@ -208,7 +203,6 @@ def main():
                     "is_gem": "創業板" in STOCKS[code]["category"]
                 })
 
-        # 1. 若無即市異動，嘗試使用 API 獲取的股票清單
         if not hot and quotes:
             for code, q in quotes.items():
                 hot.append({
@@ -225,7 +219,6 @@ def main():
                 })
             hot = sorted(hot, key=lambda x: x["amount"], reverse=True)[:15]
 
-        # 2. 若 API 無任何回應或完全空值，啟動終極硬編碼保底
         if not hot:
             hot = make_fallback_data()
 
@@ -237,11 +230,11 @@ def main():
             json.dump(STOCKS, f, ensure_ascii=False, indent=2)
 
         out = {
-    "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
-    "indices": fetch_indices(),  # <-- 新增這行三大指數數據
-    "count": len(hot),
-    "data": hot
-}
+            "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "indices": fetch_indices(),
+            "count": len(hot),
+            "data": hot
+        }
 
         with open("hot_stocks.json", "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, indent=2)
@@ -249,7 +242,7 @@ def main():
         with open("www/hot_stocks.json", "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, indent=2)
 
-        print(f"SUCCESS: Generated {len(hot)} stocks.")
+        print(f"SUCCESS: Generated {len(hot)} stocks and indices.")
 
     except Exception as e:
         print(f"Error executing script: {e}")
@@ -257,6 +250,7 @@ def main():
         fallback = make_fallback_data()
         out = {
             "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "indices": fetch_indices(),
             "count": len(fallback),
             "data": fallback
         }
