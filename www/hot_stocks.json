@@ -1,17 +1,17 @@
 {
-  "update_time": "2026-10-05 07:40:07",
+  "update_time": "2026-10-05 07:50:34",
   "indices": [
     {
       "name": "恒生指數",
       "symbol": "HSI",
-      "price": 23960.02,
-      "pct": -0.05
+      "price": 23967.98,
+      "pct": -0.02
     },
     {
       "name": "恒生科技",
       "symbol": "HSTECH",
-      "price": 4171.76,
-      "pct": 0.33
+      "price": 4168.69,
+      "pct": 0.26
     },
     {
       "name": "上證指數",
@@ -20,6 +20,157 @@
       "pct": 0.31
     }
   ],
-  "count": 0,
-  "data": []
+  "count": 15,
+  "data": [
+    {
+      "code": "01888",
+      "name": "建滔积层板",
+      "change_pct": 11.23,
+      "amount": 2994451984.0,
+      "vol_ratio": 1.3,
+      "dim": 3,
+      "dim_tag": "暴升爆量",
+      "score": 70
+    },
+    {
+      "code": "03606",
+      "name": "福耀玻璃",
+      "change_pct": 0.56,
+      "amount": 164316045.0,
+      "vol_ratio": 1.5,
+      "dim": 2,
+      "dim_tag": "資金挺進",
+      "score": 60
+    },
+    {
+      "code": "01780",
+      "name": "荣尊国际控股",
+      "change_pct": 0.17,
+      "amount": 135236217.0,
+      "vol_ratio": 2.5,
+      "dim": 2,
+      "dim_tag": "資金挺進",
+      "score": 60
+    },
+    {
+      "code": "03757",
+      "name": "罗博特科",
+      "change_pct": 9.71,
+      "amount": 130874520.0,
+      "vol_ratio": 0.3,
+      "dim": 2,
+      "dim_tag": "暴升爆量",
+      "score": 55
+    },
+    {
+      "code": "03228",
+      "name": "景旺电子",
+      "change_pct": 9.01,
+      "amount": 140728924.0,
+      "vol_ratio": 0.2,
+      "dim": 2,
+      "dim_tag": "暴升爆量",
+      "score": 55
+    },
+    {
+      "code": "09698",
+      "name": "万国数据-SW",
+      "change_pct": -2.02,
+      "amount": 244539057.0,
+      "vol_ratio": 2.3,
+      "dim": 2,
+      "dim_tag": "溫和異動",
+      "score": 50
+    },
+    {
+      "code": "00066",
+      "name": "港铁公司",
+      "change_pct": -3.41,
+      "amount": 242517362.0,
+      "vol_ratio": 1.6,
+      "dim": 2,
+      "dim_tag": "溫和異動",
+      "score": 50
+    },
+    {
+      "code": "06166",
+      "name": "剑桥科技",
+      "change_pct": 7.8,
+      "amount": 217656063.0,
+      "vol_ratio": 0.4,
+      "dim": 2,
+      "dim_tag": "資金挺進",
+      "score": 45
+    },
+    {
+      "code": "00148",
+      "name": "建滔集团",
+      "change_pct": 7.39,
+      "amount": 711683984.0,
+      "vol_ratio": 0.8,
+      "dim": 2,
+      "dim_tag": "資金挺進",
+      "score": 45
+    },
+    {
+      "code": "02476",
+      "name": "胜宏科技",
+      "change_pct": 6.3,
+      "amount": 203017378.0,
+      "vol_ratio": 0.5,
+      "dim": 2,
+      "dim_tag": "資金挺進",
+      "score": 45
+    },
+    {
+      "code": "02513",
+      "name": "智谱",
+      "change_pct": 6.15,
+      "amount": 1018478128.0,
+      "vol_ratio": 0.5,
+      "dim": 2,
+      "dim_tag": "資金挺進",
+      "score": 45
+    },
+    {
+      "code": "06809",
+      "name": "澜起科技",
+      "change_pct": 4.7,
+      "amount": 275388064.0,
+      "vol_ratio": 0.6,
+      "dim": 2,
+      "dim_tag": "資金挺進",
+      "score": 45
+    },
+    {
+      "code": "01548",
+      "name": "金斯瑞生物科技",
+      "change_pct": 4.03,
+      "amount": 550059520.0,
+      "vol_ratio": 0.5,
+      "dim": 2,
+      "dim_tag": "資金挺進",
+      "score": 45
+    },
+    {
+      "code": "00992",
+      "name": "联想集团",
+      "change_pct": 3.9,
+      "amount": 1576805552.0,
+      "vol_ratio": 0.8,
+      "dim": 2,
+      "dim_tag": "資金挺進",
+      "score": 45
+    },
+    {
+      "code": "01347",
+      "name": "华虹宏力",
+      "change_pct": 3.32,
+      "amount": 1001873280.0,
+      "vol_ratio": 0.9,
+      "dim": 2,
+      "dim_tag": "資金挺進",
+      "score": 45
+    }
+  ]
 }
