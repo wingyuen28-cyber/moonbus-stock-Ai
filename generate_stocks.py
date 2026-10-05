@@ -6,7 +6,9 @@ import re
 import time
 import requests
 
+# 設定香港時區 (UTC+8)
 HK_TZ = timezone(timedelta(hours=8))
+
 HEADERS_EASTMONEY = {
     "User-Agent": "Mozilla/5.0 Chrome/120",
     "Referer": "https://quote.eastmoney.com/",
@@ -22,7 +24,7 @@ def safe_float(v, d=0.0):
     if v in (None, "-", ""):
       return d
     return float(v)
-  except:
+  except Exception:
     return d
 
 
@@ -35,25 +37,30 @@ def format_amount(t):
 
 
 def get_time_weighted_thresholds():
+  """根據港股開市時間動態調整觸發門檻"""
   now = datetime.now(HK_TZ)
+  # 早盤開市前 30 分鐘（09:30 - 10:00）降低門檻以提早捕捉異動
   if (now.hour == 9 and now.minute >= 30) or (now.hour == 10 and now.minute <= 0):
     return {"dim3_pct": 6.0, "dim3_vol": 1.5, "dim2_vol": 1.5}
   return {"dim3_pct": 8.0, "dim3_vol": 2.0, "dim2_vol": 1.8}
 
 
 def fetch_with_retry(url, params=None, headers=None, timeout=10, retries=3):
+  """帶有指數退避機制的 HTTP 請求」"""
   for i in range(retries):
     try:
       r = requests.get(url, params=params, headers=headers, timeout=timeout)
       if r.status_code == 200 and r.text:
         return r
-    except:
+    except Exception:
       pass
     time.sleep(0.5 + i * 0.5)
   return None
 
 
 def fetch_avg_amount_batch(codes):
+  """批次獲取股票近 5 日平均成交額及昨日成交額"""
+
   def fetch_one(code):
     try:
       time.sleep(0.05)  # 溫和避開頻率限制
@@ -78,6 +85,7 @@ def fetch_avg_amount_batch(codes):
       if len(kl) < 2:
         return code, None, None
       amts = []
+      # 擷取歷史日 K 線（不含今天）
       for k in kl[:-1][-5:]:
         p = k.split(",")
         if len(p) >= 7:
@@ -87,7 +95,7 @@ def fetch_avg_amount_batch(codes):
       if not amts:
         return code, None, None
       return code, sum(amts) / len(amts), amts[-1]
-    except:
+    except Exception:
       return code, None, None
 
   mp = {}
@@ -100,10 +108,12 @@ def fetch_avg_amount_batch(codes):
 
 
 def fetch_full_market_anomalies():
+  """全市場掃描三維度異動股票"""
   th = get_time_weighted_thresholds()
   scans = [{"fid": "f6", "pz": "400"}, {"fid": "f3", "pz": "200"}]
   all_items = []
   seen = set()
+
   for sc in scans:
     url = "https://push2.eastmoney.com/api/qt/clist/get"
     params = {
@@ -140,8 +150,11 @@ def fetch_full_market_anomalies():
     pct = safe_float(it.get("f3"))
     turn = safe_float(it.get("f6"))
     vol = safe_float(it.get("f10"), 1.0)
+
+    # 過濾細價股 (<=0.15) 及成交極低股 (<500萬)
     if price <= 0.15 or turn < 5000000:
       continue
+
     base = {
         "code": c,
         "name": n,
@@ -155,6 +168,7 @@ def fetch_full_market_anomalies():
     if (pct >= 3.0 or vol >= 1.5 or turn >= 15000000) and pct > 0:
       cands.append(c)
 
+  # 批次查詢近 5 日歷史均額
   avg_map = fetch_avg_amount_batch(cands[:60])
   d3, d2, d1 = [], [], []
 
@@ -172,7 +186,7 @@ def fetch_full_market_anomalies():
     base["surge_ratio_1d"] = round(r1, 2)
     base["amount_avg5"] = round(avg5, 2) if avg5 else 0
 
-    # 維度 3：爆發強勢
+    # 維度 3：爆發強勢 (🔴)
     if pct >= th["dim3_pct"] or (vol >= th["dim3_vol"] and pct >= 5.0):
       tag = "暴升爆量" if pct >= 10 else "首日爆發"
       d3.append({
@@ -184,7 +198,7 @@ def fetch_full_market_anomalies():
           ),
           "score": pct * 10 + vol * 5 + surge * 2,
       })
-    # 維度 2：主力進場
+    # 維度 2：主力進場 (🟡)
     elif vol >= th["dim2_vol"] and pct >= 1.5:
       if surge >= 1.2 or vol >= 2.5:
         d2.append({
@@ -196,7 +210,7 @@ def fetch_full_market_anomalies():
             ),
             "score": vol * 20 + surge * 10 + pct * 2,
         })
-    # 維度 1：資金挺進（補全你補充的容錯邏輯）
+    # 維度 1：資金挺進 (🔵)
     elif turn >= 30000000 and pct > 0:
       if (has_history and (surge >= 1.5 or r1 >= 1.8)) or (
           not has_history and turn >= 30000000
@@ -212,6 +226,7 @@ def fetch_full_market_anomalies():
             "score": surge * 20 + turn / 1e7 + pct,
         })
 
+  # 排序輸出
   d3.sort(key=lambda x: (x["change_pct"], x["surge_ratio"]), reverse=True)
   d2.sort(key=lambda x: (x["vol_ratio"], x["surge_ratio"]), reverse=True)
   d1.sort(key=lambda x: (x["surge_ratio"], x["amount"]), reverse=True)
@@ -225,13 +240,14 @@ def fetch_full_market_anomalies():
 
 
 def fetch_indices():
+  """抓取三大指數（恒指、恒生科技、上證指數）"""
   url = "https://qt.gtimg.cn/q=r_hkHSI,r_hkHSTECH,sh000001"
   idx = []
   try:
     res = fetch_with_retry(url, headers=HEADERS_TENCENT, timeout=8, retries=2)
     txt = res.text if res else ""
 
-    def ph(m):
+    def parse_tencent(m):
       if not m:
         return None
       p = m.group(1).split("~")
@@ -248,7 +264,7 @@ def fetch_indices():
         (r'v_r_hkHSTECH="(.*?)"', "恒生科技", "HSTECH"),
     ]:
       m = re.search(pat, txt)
-      r = ph(m)
+      r = parse_tencent(m)
       if r:
         idx.append({
             "name": na,
@@ -270,9 +286,10 @@ def fetch_indices():
               "price": round(pr, 2),
               "pct": round((pr - pv) / pv * 100 if pv > 0 else 0, 2),
           })
-  except:
+  except Exception:
     pass
 
+  # 保底填補
   if len(idx) < 3:
     for d in [
         {"name": "恒生指數", "symbol": "HSI"},
@@ -287,6 +304,7 @@ def fetch_indices():
 def main():
   ano = fetch_full_market_anomalies()
   ids = fetch_indices()
+
   out = {
       "update_time": datetime.now(HK_TZ).strftime("%Y-%m-%d %H:%M:%S"),
       "update_timestamp": int(time.time()),
@@ -300,14 +318,16 @@ def main():
       },
   }
 
+  # 寫入根目錄
   with open("hot_stocks.json", "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False, indent=2)
 
+  # 寫入 www 目錄 (支援 GitHub Pages / Web Server)
   os.makedirs("www", exist_ok=True)
   with open("www/hot_stocks.json", "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False, indent=2)
 
-  print(f"SUCCESS {len(ano['combined'])} @ {out['update_time']}")
+  print(f"SUCCESS: Generated {len(ano['combined'])} stocks @ {out['update_time']}")
 
 
 if __name__ == "__main__":
