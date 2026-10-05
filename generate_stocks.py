@@ -3,8 +3,9 @@ import time
 import re
 import requests
 import os
+from datetime import datetime, time as dtime
 
-# 1. 全網掃描股票池 (包含恒生科技、熱門藍籌、高波動中小型股及 GEM)
+# 1. 掃描股票池
 STOCKS = {
     # 權重科技與指數
     "00700": {"name": "騰訊控股", "category": "港股主板"},
@@ -45,7 +46,59 @@ HEADERS = {
     "Referer": "https://finance.qq.com/"
 }
 
+def get_market_progress():
+    """計算當前港股交易時間進度 (0.05 ~ 1.0)"""
+    now = datetime.now()
+    t_now = now.time()
+    
+    t_open = dtime(9, 30)
+    t_noon_start = dtime(12, 0)
+    t_noon_end = dtime(13, 0)
+    t_close = dtime(16, 0)
+
+    # 週末或收盤後按 1.0 全天計算
+    if t_now < t_open or t_now >= t_close or now.weekday() >= 5:
+        return 1.0
+
+    if t_open <= t_now < t_noon_start:
+        elapsed = (now.hour - 9) * 60 + (now.minute - 30)
+        return max(0.05, elapsed / 330.0)
+    elif t_noon_start <= t_now < t_noon_end:
+        return 150.0 / 330.0
+    else:
+        elapsed = 150 + (now.hour - 13) * 60 + now.minute
+        return min(1.0, elapsed / 330.0)
+
+def fetch_ma15_amounts(codes):
+    """批量抓取歷史 K 線並計算 15 日平均成交額"""
+    ma15_map = {}
+    param_str = "|".join([f"hk{c},day,,,16,qfq" for c in codes])
+    url = f"http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={param_str}"
+    
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=10)
+        data = resp.json().get("data", {})
+        for code in codes:
+            hk_key = f"hk{code}"
+            if hk_key in data and "day" in data[hk_key]:
+                days = data[hk_key]["day"]
+                recent_days = days[-16:-1] if len(days) >= 16 else days
+                amounts = []
+                for d in recent_days:
+                    try:
+                        # 解析歷史成交額
+                        amt = float(d[5]) * float(d[2]) if len(d) > 5 else 0
+                        amounts.append(amt)
+                    except:
+                        pass
+                if amounts and sum(amounts) > 0:
+                    ma15_map[code] = sum(amounts) / len(amounts)
+    except Exception as e:
+        print(f"Fetch MA15 error: {e}")
+    return ma15_map
+
 def fetch_batch_detail(codes):
+    """抓取即時報價與買賣盤數據"""
     try:
         q = ",".join([f"r_hk{c}" for c in codes])
         url = f"https://qt.gtimg.cn/q={q}"
@@ -70,8 +123,7 @@ def fetch_batch_detail(codes):
                 amt = float(p[37]) if len(p) > 37 and p[37] else 0.0
                 pct = ((price - prev) / prev * 100.0) if prev > 0 else 0.0
 
-                b_sum = 0.0
-                a_sum = 0.0
+                b_sum, a_sum = 0.0, 0.0
                 for i in range(5):
                     bp = float(p[9 + i]) if len(p) > 9 + i and p[9 + i] else 0.0
                     bv = float(p[19 + i]) if len(p) > 19 + i and p[19 + i] else 0.0
@@ -102,82 +154,57 @@ def fetch_batch_detail(codes):
     except Exception:
         return {}
 
-def make_fallback_data():
-    """網絡完全無法連線時的最後保底數據"""
-    fallback = []
-    for code, info in list(STOCKS.items())[:15]:
-        fallback.append({
-            "code": code,
-            "name": info["name"],
-            "category": info["category"],
-            "change_pct": 0.0,
-            "amount": 10000000.0,
-            "weibi": 0.0,
-            "range_pct": 0.0,
-            "score": 10.0,
-            "reason": "休市/數據加載中",
-            "is_gem": "創業板" in info["category"]
-        })
-    return fallback
-
 def fetch_indices():
-    """抓取恒指、恒科、上證指數數據 (已修復 A 股數據解析)"""
+    """抓取恒指、恒科、上證指數數據 (精確計算升跌幅)"""
     url = "https://qt.gtimg.cn/q=r_hkHSI,r_hkHSTECH,sh000001"
     indices = []
-    
-    fallback_indices = [
-        {"name": "恒生指數", "symbol": "HSI", "price": 23841.75, "change": -129.20, "pct": -0.54},
-        {"name": "恒生科技", "symbol": "HSTECH", "price": 4136.74, "change": -21.20, "pct": -0.51},
-        {"name": "上證指數", "symbol": "SSEC", "price": 3350.88, "change": -5.10, "pct": -0.15}
-    ]
-    
     try:
         resp = requests.get(url, headers=HEADERS, timeout=8)
         txt = resp.text
         
-        # 1. 恒生指數
+        # 恒指
         m_hsi = re.search(r'v_r_hkHSI="(.*)"', txt)
         if m_hsi:
             p = m_hsi.group(1).split('~')
             price, prev = float(p[3]), float(p[4])
-            diff = price - prev
-            pct = (diff / prev * 100) if prev > 0 else 0
-            indices.append({"name": "恒生指數", "symbol": "HSI", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
+            indices.append({"name": "恒生指數", "symbol": "HSI", "price": round(price, 2), "pct": round((price - prev) / prev * 100, 2)})
 
-        # 2. 恒生科技指數
+        # 恒科
         m_tech = re.search(r'v_r_hkHSTECH="(.*)"', txt)
         if m_tech:
             p = m_tech.group(1).split('~')
             price, prev = float(p[3]), float(p[4])
-            diff = price - prev
-            pct = (diff / prev * 100) if prev > 0 else 0
-            indices.append({"name": "恒生科技", "symbol": "HSTECH", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
+            indices.append({"name": "恒生科技", "symbol": "HSTECH", "price": round(price, 2), "pct": round((price - prev) / prev * 100, 2)})
 
-        # 3. 上證指數 (修正解析位置：p[3]=現價, p[4]=昨收)
+        # 上證指數 (修正解析位置)
         m_sh = re.search(r'v_sh000001="(.*)"', txt)
         if m_sh:
             p = m_sh.group(1).split('~')
             price = float(p[3]) if len(p) > 3 and p[3] else 0.0
             prev = float(p[4]) if len(p) > 4 and p[4] else price
-            diff = price - prev
-            pct = (diff / prev * 100) if prev > 0 else 0.0
-            indices.append({"name": "上證指數", "symbol": "SSEC", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
+            indices.append({"name": "上證指數", "symbol": "SSEC", "price": round(price, 2), "pct": round((price - prev) / prev * 100, 2)})
 
     except Exception as e:
         print(f"Index fetch error: {e}")
 
     if len(indices) < 3:
-        return fallback_indices
-        
+        return [
+            {"name": "恒生指數", "symbol": "HSI", "price": 23841.75, "pct": -0.54},
+            {"name": "恒生科技", "symbol": "HSTECH", "price": 4136.74, "pct": -0.51},
+            {"name": "上證指數", "symbol": "SSEC", "price": 3842.19, "pct": -0.15}
+        ]
     return indices
 
 def main():
     try:
-        quotes = {}
         codes = list(STOCKS.keys())
+        progress = get_market_progress()
+        
+        # 1. 抓取 15日平均金額與即時行情
+        ma15_map = fetch_ma15_amounts(codes)
+        quotes = {}
         for i in range(0, len(codes), 20):
-            batch = codes[i:i+20]
-            quotes.update(fetch_batch_detail(batch))
+            quotes.update(fetch_batch_detail(codes[i:i+20]))
             time.sleep(0.1)
 
         hot = []
@@ -187,19 +214,34 @@ def main():
             amt = q["amount"]
             range_pct = q["range_pct"]
 
-            # 計算異動得分
-            score = abs(pct) * 3 + (range_pct * 1.5) + (abs(weibi) * 0.2)
-            if amt > 1e8: score += 10
-            elif amt > 1e7: score += 5
+            # 估算全日成交量與量比
+            est_amt = amt / progress
+            ma15_amt = ma15_map.get(code, amt)
+            vol_ratio = round(est_amt / ma15_amt, 2) if ma15_amt > 0 else 1.0
 
-            if weibi > 30 and pct > 0:
-                reason = f"主買積壓 (委比{weibi:.0f}%) | 漲幅 {pct:.2f}%"
-            elif weibi < -30 and pct < 0:
-                reason = f"拋壓沉重 (委比{weibi:.0f}%) | 跌幅 {pct:.2f}%"
-            elif range_pct > 5.0:
-                reason = f"劇烈震盪 (振幅{range_pct:.1f}%) | 成交${amt/1e4:.0f}萬"
+            # 2. 三維度邏輯判斷
+            dim = 1
+            dim_tag = "資金關注"
+            reason = f"預估量比 {vol_ratio}x | 振幅 {range_pct:.1f}%"
+
+            # 第 3 維度：首日爆發 (量比 >= 2.5 且 漲跌幅 >= 3.5% 或大振幅)
+            if vol_ratio >= 2.5 and (abs(pct) >= 3.5 or range_pct >= 5.5):
+                dim = 3
+                dim_tag = "首日爆發"
+                reason = f"爆量突破 (量比{vol_ratio}x) | 變盤動能強烈"
+            # 第 2 維度：主力收貨 (量比 >= 1.6 且 買盤積壓或漲幅溫和)
+            elif vol_ratio >= 1.6 and (weibi >= 15 or pct >= 1.0):
+                dim = 2
+                dim_tag = "主力收貨"
+                reason = f"主力籌碼鎖定 (委比{weibi:.0f}%) | 溫和吸籌"
+            # 第 1 維度：資金關注 (量比 >= 1.2 或 有基本波動)
             else:
-                reason = f"動能放大 {pct:.2f}% | 成交${amt/1e4:.0f}萬"
+                dim = 1
+                dim_tag = "資金關注"
+                reason = f"交投轉趨活躍 (量比{vol_ratio}x)"
+
+            # 綜合評分排序
+            score = (dim * 100) + (vol_ratio * 10) + abs(pct)
 
             hot.append({
                 "code": code,
@@ -207,24 +249,19 @@ def main():
                 "category": STOCKS[code]["category"],
                 "change_pct": round(pct, 2),
                 "amount": amt,
+                "vol_ratio": vol_ratio,
                 "weibi": round(weibi, 1),
-                "range_pct": round(range_pct, 2),
+                "dim": dim,
+                "dim_tag": dim_tag,
                 "score": round(score, 1),
                 "reason": reason,
                 "is_gem": "創業板" in STOCKS[code]["category"]
             })
 
-        # 優先按異動分排序，取前 15 隻；若分數相同則按成交額排序
-        if hot:
-            hot = sorted(hot, key=lambda x: (x.get("score", 0), x.get("amount", 0)), reverse=True)[:15]
-        else:
-            hot = make_fallback_data()
+        # 按維度與綜合分數排序，取前 15 隻
+        hot = sorted(hot, key=lambda x: x["score"], reverse=True)[:15]
 
         os.makedirs("www", exist_ok=True)
-        
-        with open("stocks.json", "w", encoding="utf-8") as f:
-            json.dump(STOCKS, f, ensure_ascii=False, indent=2)
-
         out = {
             "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
             "indices": fetch_indices(),
@@ -238,22 +275,10 @@ def main():
         with open("www/hot_stocks.json", "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, indent=2)
 
-        print(f"SUCCESS: Generated {len(hot)} stocks and indices.")
+        print(f"SUCCESS: Categorized {len(hot)} stocks into 3 dimensions.")
 
     except Exception as e:
-        print(f"Error executing script: {e}")
-        os.makedirs("www", exist_ok=True)
-        fallback = make_fallback_data()
-        out = {
-            "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "indices": fetch_indices(),
-            "count": len(fallback),
-            "data": fallback
-        }
-        with open("hot_stocks.json", "w", encoding="utf-8") as f:
-            json.dump(out, f, ensure_ascii=False, indent=2)
-        with open("www/hot_stocks.json", "w", encoding="utf-8") as f:
-            json.dump(out, f, ensure_ascii=False, indent=2)
+        print(f"Main execution error: {e}")
 
 if __name__ == "__main__":
     main()
