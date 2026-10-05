@@ -40,11 +40,16 @@ STOCKS = {
     "08271": {"name": "環球戰略集團", "category": "創業板 (GEM)"}
 }
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Referer": "https://finance.qq.com/"
+}
+
 def fetch_batch_detail(codes):
     try:
         q = ",".join([f"r_hk{c}" for c in codes])
         url = f"https://qt.gtimg.cn/q={q}"
-        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        resp = requests.get(url, headers=HEADERS, timeout=10)
         txt = resp.text
         res = {}
 
@@ -98,7 +103,7 @@ def fetch_batch_detail(codes):
         return {}
 
 def make_fallback_data():
-    """強制作廢/休市保底函數：直接產生 15 隻標準預設數據"""
+    """網絡完全無法連線時的最後保底數據"""
     fallback = []
     for code, info in list(STOCKS.items())[:15]:
         fallback.append({
@@ -110,26 +115,27 @@ def make_fallback_data():
             "weibi": 0.0,
             "range_pct": 0.0,
             "score": 10.0,
-            "reason": "休市/無異動展示",
+            "reason": "休市/數據加載中",
             "is_gem": "創業板" in info["category"]
         })
     return fallback
 
 def fetch_indices():
-    """抓取恒指、恒科、上證指數數據"""
+    """抓取恒指、恒科、上證指數數據 (已修復 A 股數據解析)"""
     url = "https://qt.gtimg.cn/q=r_hkHSI,r_hkHSTECH,sh000001"
     indices = []
     
     fallback_indices = [
-        {"name": "恒生指數", "symbol": "HSI", "price": 20850.12, "change": 120.5, "pct": 0.58},
-        {"name": "恒生科技", "symbol": "HSTECH", "price": 4580.30, "change": 35.2, "pct": 0.77},
-        {"name": "上證指數", "symbol": "SSEC", "price": 3350.88, "change": -5.1, "pct": -0.15}
+        {"name": "恒生指數", "symbol": "HSI", "price": 23841.75, "change": -129.20, "pct": -0.54},
+        {"name": "恒生科技", "symbol": "HSTECH", "price": 4136.74, "change": -21.20, "pct": -0.51},
+        {"name": "上證指數", "symbol": "SSEC", "price": 3350.88, "change": -5.10, "pct": -0.15}
     ]
     
     try:
-        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+        resp = requests.get(url, headers=HEADERS, timeout=8)
         txt = resp.text
         
+        # 1. 恒生指數
         m_hsi = re.search(r'v_r_hkHSI="(.*)"', txt)
         if m_hsi:
             p = m_hsi.group(1).split('~')
@@ -138,6 +144,7 @@ def fetch_indices():
             pct = (diff / prev * 100) if prev > 0 else 0
             indices.append({"name": "恒生指數", "symbol": "HSI", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
 
+        # 2. 恒生科技指數
         m_tech = re.search(r'v_r_hkHSTECH="(.*)"', txt)
         if m_tech:
             p = m_tech.group(1).split('~')
@@ -146,10 +153,14 @@ def fetch_indices():
             pct = (diff / prev * 100) if prev > 0 else 0
             indices.append({"name": "恒生科技", "symbol": "HSTECH", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
 
+        # 3. 上證指數 (修正解析位置：p[3]=現價, p[4]=昨收)
         m_sh = re.search(r'v_sh000001="(.*)"', txt)
         if m_sh:
             p = m_sh.group(1).split('~')
-            price, diff, pct = float(p[3]), float(p[4]), float(p[5])
+            price = float(p[3]) if len(p) > 3 and p[3] else 0.0
+            prev = float(p[4]) if len(p) > 4 and p[4] else price
+            diff = price - prev
+            pct = (diff / prev * 100) if prev > 0 else 0.0
             indices.append({"name": "上證指數", "symbol": "SSEC", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
 
     except Exception as e:
@@ -176,53 +187,38 @@ def main():
             amt = q["amount"]
             range_pct = q["range_pct"]
 
-            if abs(pct) >= 0.8 or abs(weibi) >= 40 or range_pct >= 3.0:
-                score = abs(pct) * 3 + (range_pct * 1.5) + (abs(weibi) * 0.2)
-                if amt > 1e8: score += 10
-                elif amt > 1e7: score += 5
+            # 計算異動得分
+            score = abs(pct) * 3 + (range_pct * 1.5) + (abs(weibi) * 0.2)
+            if amt > 1e8: score += 10
+            elif amt > 1e7: score += 5
 
-                if weibi > 30 and pct > 0:
-                    reason = f"主買積壓 (委比{weibi:.0f}%) | 漲幅 {pct:.2f}%"
-                elif weibi < -30 and pct < 0:
-                    reason = f"拋壓沉重 (委比{weibi:.0f}%) | 跌幅 {pct:.2f}%"
-                elif range_pct > 5.0:
-                    reason = f"劇烈震盪 (振幅{range_pct:.1f}%) | 成交${amt/1e4:.0f}萬"
-                else:
-                    reason = f"動能放大 {pct:.2f}% | 成交${amt/1e4:.0f}萬"
+            if weibi > 30 and pct > 0:
+                reason = f"主買積壓 (委比{weibi:.0f}%) | 漲幅 {pct:.2f}%"
+            elif weibi < -30 and pct < 0:
+                reason = f"拋壓沉重 (委比{weibi:.0f}%) | 跌幅 {pct:.2f}%"
+            elif range_pct > 5.0:
+                reason = f"劇烈震盪 (振幅{range_pct:.1f}%) | 成交${amt/1e4:.0f}萬"
+            else:
+                reason = f"動能放大 {pct:.2f}% | 成交${amt/1e4:.0f}萬"
 
-                hot.append({
-                    "code": code,
-                    "name": STOCKS[code]["name"],
-                    "category": STOCKS[code]["category"],
-                    "change_pct": round(pct, 2),
-                    "amount": amt,
-                    "weibi": round(weibi, 1),
-                    "range_pct": round(range_pct, 2),
-                    "score": round(score, 1),
-                    "reason": reason,
-                    "is_gem": "創業板" in STOCKS[code]["category"]
-                })
+            hot.append({
+                "code": code,
+                "name": STOCKS[code]["name"],
+                "category": STOCKS[code]["category"],
+                "change_pct": round(pct, 2),
+                "amount": amt,
+                "weibi": round(weibi, 1),
+                "range_pct": round(range_pct, 2),
+                "score": round(score, 1),
+                "reason": reason,
+                "is_gem": "創業板" in STOCKS[code]["category"]
+            })
 
-        if not hot and quotes:
-            for code, q in quotes.items():
-                hot.append({
-                    "code": code,
-                    "name": STOCKS[code]["name"],
-                    "category": STOCKS[code]["category"],
-                    "change_pct": round(q["pct"], 2),
-                    "amount": q["amount"],
-                    "weibi": round(q["weibi"], 1),
-                    "range_pct": round(q["range_pct"], 2),
-                    "score": 10.0,
-                    "reason": f"休市靜態展示 | 現價 ${q['price']:.2f}",
-                    "is_gem": "創業板" in STOCKS[code]["category"]
-                })
-            hot = sorted(hot, key=lambda x: x["amount"], reverse=True)[:15]
-
-        if not hot:
+        # 優先按異動分排序，取前 15 隻；若分數相同則按成交額排序
+        if hot:
+            hot = sorted(hot, key=lambda x: (x.get("score", 0), x.get("amount", 0)), reverse=True)[:15]
+        else:
             hot = make_fallback_data()
-
-        hot = sorted(hot, key=lambda x: x.get("score", 0), reverse=True)[:30]
 
         os.makedirs("www", exist_ok=True)
         
