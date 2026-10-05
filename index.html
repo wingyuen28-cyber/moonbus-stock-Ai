@@ -42,26 +42,25 @@ function calcPro(s) {
   var deltaAmt = Math.max(0, s.amount - lastAmt);
   lastAmountMap[s.code] = s.amount;
 
-  // 🔴 爆發維度得分 (價格大幅變動)
+  // 🔴 爆發維度得分
   var burstScore = 0;
-  if (s.pct >= 15) burstScore = 40;       // 如 2342 升+20% 可得滿分
+  if (s.pct >= 15) burstScore = 40;
   else if (s.pct >= 8) burstScore = 30;
   else if (s.pct >= 3) burstScore = 20;
   else if (s.pct > 0) burstScore = 10;
 
-  // 🟡 主力維度得分 (短時間成交速率)
+  // 🟡 主力維度得分
   var mainScore = deltaAmt >= 2e6 ? 35 : (deltaAmt >= 5e5 ? 25 : (deltaAmt >= 1e5 ? 15 : 5));
 
-  // 🔵 資金維度得分 (總成交金額底座)
+  // 🔵 資金維度得分
   var capitalScore = s.amount >= 3e7 ? 25 : (s.amount >= 1e7 ? 15 : 5);
 
   var total = Math.min(99, Math.max(5, burstScore + mainScore + capitalScore));
   
-  // 計算點亮維度數量 (1~3 燈)
   var dimCount = 0;
-  if (burstScore >= 20) dimCount++;
-  if (mainScore >= 25 || weibi > 20) dimCount++;
-  if (capitalScore >= 15) dimCount++;
+  if (burstScore >= 20) dimCount = 3;
+  else if (mainScore >= 25 || weibi > 20) dimCount = 2;
+  else if (capitalScore >= 15) dimCount = 1;
 
   var rating = '平淡', strat = '觀望';
   if (s.pct >= 10 && s.amount >= 1e7) { rating = '暴升爆量'; strat = '強勢追縱'; }
@@ -116,7 +115,7 @@ async function refreshData(){
       var up=s.pct>0.05,down=s.pct<-0.05;
       var bc=up?'border-emerald-500':down?'border-red-500':'border-zinc-600';
       var tc=up?'text-emerald-400':down?'text-red-400':'text-zinc-300';
-      box.innerHTML+='<div class="card-bg p-3 rounded-xl border-2 '+bc+' flex justify-between items-center"><div onclick="pick(\''+s.code+'\')" class="flex-1"><div class="font-black gold-light">'+s.name+'</div><div class="text-[11px] text-zinc-400">HK.'+s.code+' 成交額 '+fmtAmt(s.amount)+'</div></div><div class="flex gap-2 items-center"><div onclick="pick(\''+s.code+'\')" class="text-right"><div class="font-black '+tc+'">$'+fmtP(s.price)+'</div><div class="text-xs '+tc+'">'+(s.pct>0?'+':'')+s.pct.toFixed(2)+'%</div></div><button onclick="delWatch(\''+s.code+'\')" class="w-6 h-6 rounded-full bg-zinc-800">X</button></div></div>';
+      box.innerHTML+='<div class="card-bg p-3 rounded-xl border-2 '+bc+' flex justify-between items-center"><div onclick="pick(\''+s.code+'\')" class="flex-1 cursor-pointer"><div class="font-black gold-light">'+s.name+'</div><div class="text-[11px] text-zinc-400">HK.'+s.code+' 成交額 '+fmtAmt(s.amount)+'</div></div><div class="flex gap-2 items-center"><div onclick="pick(\''+s.code+'\')" class="text-right cursor-pointer"><div class="font-black '+tc+'">$'+fmtP(s.price)+'</div><div class="text-xs '+tc+'">'+(s.pct>0?'+':'')+s.pct.toFixed(2)+'%</div></div><button onclick="delWatch(\''+s.code+'\')" class="w-6 h-6 rounded-full bg-zinc-800">X</button></div></div>';
       
       if(!ticks[s.code])ticks[s.code]=[];
       ticks[s.code].push(s.price);
@@ -164,19 +163,19 @@ function drawChart(){try{var prices=ticks[cur]||[];if(prices.length<2)return;var
 function pick(c){cur=norm(c);switchTab(2);refreshData()}
 function switchTab(n){document.getElementById('tab1-wrap').classList.toggle('hidden',n==2);document.getElementById('tab2-content').classList.toggle('hidden',n!=2);document.getElementById('tab1-btn').className=n==1?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400";document.getElementById('tab2-btn').className=n==2?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400"}
 
-var serverHotData = [];
+var serverHotJson = null;
 
 async function loadHot(){
   try{
     var r=await fetch('https://wingyuen28-cyber.github.io/moonbus-stock-Ai/hot_stocks.json?t='+Date.now(),{cache:'no-store'});
-    var j=await r.json();
+    serverHotJson = await r.json();
     
     // 渲染三大指數
-    if(j.indices && j.indices.length > 0){
+    if(serverHotJson.indices && serverHotJson.indices.length > 0){
       var idxBox = document.getElementById('indices-bar');
       var idxHtml = '';
-      for(var k=0; k<j.indices.length; k++){
-        var idx = j.indices[k];
+      for(var k=0; k<serverHotJson.indices.length; k++){
+        var idx = serverHotJson.indices[k];
         var up = idx.pct >= 0;
         var tc = up ? 'text-emerald-400' : 'text-red-400';
         var sign = up ? '+' : '';
@@ -185,37 +184,76 @@ async function loadHot(){
       if(idxBox) idxBox.innerHTML = idxHtml;
     }
 
-    serverHotData = j.data || [];
     renderHotList();
   }catch(e){console.log('loadHot err',e)}
 }
 
-// 結合後端 JSON 與前端即時捕捉數據進行渲染
+// 分 3 行渲染三個維度的異動清單
 function renderHotList(){
-  var hot = (serverHotData && serverHotData.length > 0) ? serverHotData : localAnomalies;
-  document.getElementById('hot-count').innerText = hot.length;
-  var box = document.getElementById('hot-list');
-  if(!box) return;
-  
-  if(hot.length === 0){
-    box.innerHTML = '<div class="text-xs text-zinc-500 py-2">目前未偵測到明顯異動</div>';
-    return;
+  var dim3 = [], dim2 = [], dim1 = [];
+
+  if (serverHotJson && serverHotJson.categorized) {
+    dim3 = serverHotJson.categorized.dim3 || [];
+    dim2 = serverHotJson.categorized.dim2 || [];
+    dim1 = serverHotJson.categorized.dim1 || [];
+  } else if (serverHotJson && serverHotJson.data) {
+    serverHotJson.data.forEach(function(s){
+      if(s.dim === 3) dim3.push(s);
+      else if(s.dim === 2) dim2.push(s);
+      else dim1.push(s);
+    });
+  } else {
+    // 前端即時捕捉備用資料
+    localAnomalies.forEach(function(s){
+      if(s.dim === 3) dim3.push(s);
+      else if(s.dim === 2) dim2.push(s);
+      else dim1.push(s);
+    });
   }
 
-  var html = '';
-  for(var i=0;i<hot.length;i++){
-    var s = hot[i];
-    var code = norm(s.code);
-    var up = (s.change_pct || 0) >= 0;
-    var tc = up ? 'text-emerald-400' : 'text-red-400';
-    
-    var badgeStyle = 'bg-blue-500/20 text-blue-400 border-blue-500/40';
-    if(s.dim === 3) badgeStyle = 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse';
-    else if(s.dim === 2) badgeStyle = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+  var totalCount = dim3.length + dim2.length + dim1.length;
+  var countEl = document.getElementById('hot-count');
+  if(countEl) countEl.innerText = totalCount;
 
-    html += '<div onclick="pick(\''+code+'\')" class="min-w-[150px] card-bg p-3 rounded-xl border border-zinc-700 flex flex-col justify-between space-y-1"><div class="flex justify-between items-start"><div class="font-bold gold-light text-[13px]">'+nameOf(code,s.name)+'</div><span class="text-[9px] px-1.5 py-0.5 rounded border '+badgeStyle+'">'+(s.dim_tag||'異動')+'</span></div><div class="text-[10px] text-zinc-500">HK.'+code+'</div><div class="flex justify-between items-center mt-1"><div class="'+tc+' font-bold text-[13px]">'+(up?'+':'')+(s.change_pct||0)+'%</div><div class="text-[10px] text-zinc-400">量比 '+(s.vol_ratio||1.0)+'x</div></div></div>';
+  function buildRowHtml(arr, dimType) {
+    if (!arr || arr.length === 0) {
+      return '<div class="text-[11px] text-zinc-600 py-1.5 px-1">暫無異動股</div>';
+    }
+    var html = '';
+    for (var i = 0; i < arr.length; i++) {
+      var s = arr[i];
+      var code = norm(s.code);
+      var up = (s.change_pct || 0) >= 0;
+      var tc = up ? 'text-emerald-400' : 'text-red-400';
+      
+      var badgeStyle = 'bg-blue-500/20 text-blue-400 border-blue-500/40';
+      if(dimType === 3) badgeStyle = 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse';
+      else if(dimType === 2) badgeStyle = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+
+      var extraInfo = s.surge_ratio ? ('量增 ' + s.surge_ratio + 'x') : ('量比 ' + (s.vol_ratio||1.0) + 'x');
+
+      html += '<div onclick="pick(\''+code+'\')" class="min-w-[145px] card-bg p-2.5 rounded-xl border border-zinc-800 flex flex-col justify-between space-y-1 flex-shrink-0 cursor-pointer hover:border-zinc-700">' +
+        '<div class="flex justify-between items-start gap-1">' +
+          '<div class="font-bold gold-light text-[12px] truncate max-w-[80px]">'+nameOf(code,s.name)+'</div>' +
+          '<span class="text-[9px] px-1.5 py-0.5 rounded border '+badgeStyle+'">'+(s.dim_tag||'異動')+'</span>' +
+        '</div>' +
+        '<div class="text-[10px] text-zinc-500">HK.'+code+'</div>' +
+        '<div class="flex justify-between items-center mt-1">' +
+          '<div class="'+tc+' font-bold text-[12px]">'+(up?'+':'')+(s.change_pct||0)+'%</div>' +
+          '<div class="text-[9px] text-zinc-400">'+extraInfo+'</div>' +
+        '</div>' +
+      '</div>';
+    }
+    return html;
   }
-  box.innerHTML = html;
+
+  var box3 = document.getElementById('dim3-list');
+  var box2 = document.getElementById('dim2-list');
+  var box1 = document.getElementById('dim1-list');
+
+  if(box3) box3.innerHTML = buildRowHtml(dim3, 3);
+  if(box2) box2.innerHTML = buildRowHtml(dim2, 2);
+  if(box1) box1.innerHTML = buildRowHtml(dim1, 1);
 }
 
 function init(){loadHot();refreshData();setInterval(refreshData,8000);setInterval(loadHot,60000)}
@@ -233,8 +271,36 @@ if(document.readyState=='loading'){document.addEventListener('DOMContentLoaded',
 <div class="card-bg p-2.5 rounded-xl flex gap-2 border border-zinc-800"><input id="add-input" inputmode="numeric" placeholder="09988" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"><button onclick="addWatch()" class="bg-[#FACC15] text-black font-black px-5 rounded-lg text-sm">加入</button></div>
 <div id="stock-list" class="space-y-3 text-xs">載入中...</div>
 
-<!-- 三維度異動區塊 -->
-<div class="space-y-2 pt-2 border-t border-zinc-800"><div class="flex justify-between items-center"><span class="font-black gold text-[14px]">📊 三維度動能異動 <span id="hot-count" class="text-yellow-400 ml-1">--</span></span><span class="text-[10px] text-zinc-500">🔴爆發 🟡主力 🔵資金</span></div><div id="hot-list" class="flex gap-2 overflow-x-auto no-scrollbar pb-2">載入中...</div></div>
+<!-- 三維度異動區塊 (分為 3 行獨立顯示) -->
+<div class="space-y-3 pt-2 border-t border-zinc-800">
+  <div class="flex justify-between items-center">
+    <span class="font-black gold text-[14px]">📊 三維度動能異動 <span id="hot-count" class="text-yellow-400 ml-1">--</span></span>
+  </div>
+
+  <!-- 維度 3: 爆發強勢 -->
+  <div class="space-y-1">
+    <div class="text-[11px] font-bold text-red-400 flex items-center gap-1">
+      <span>🔴</span> 爆發強勢 (維度 3)
+    </div>
+    <div id="dim3-list" class="flex gap-2 overflow-x-auto no-scrollbar pb-1">載入中...</div>
+  </div>
+
+  <!-- 維度 2: 主力進場 -->
+  <div class="space-y-1">
+    <div class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+      <span>🟡</span> 主力進場 (維度 2)
+    </div>
+    <div id="dim2-list" class="flex gap-2 overflow-x-auto no-scrollbar pb-1">載入中...</div>
+  </div>
+
+  <!-- 維度 1: 資金挺進 -->
+  <div class="space-y-1">
+    <div class="text-[11px] font-bold text-blue-400 flex items-center gap-1">
+      <span>🔵</span> 資金挺進 (維度 1)
+    </div>
+    <div id="dim1-list" class="flex gap-2 overflow-x-auto no-scrollbar pb-1">載入中...</div>
+  </div>
+</div>
 </section>
 
 <section id="tab2-content" class="hidden space-y-3">
