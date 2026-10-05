@@ -1,238 +1,313 @@
-from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
 import json
 import os
 import re
 import time
 import requests
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        " (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    ),
+HK_TZ = timezone(timedelta(hours=8))
+HEADERS_EASTMONEY = {
+    "User-Agent": "Mozilla/5.0 Chrome/120",
+    "Referer": "https://quote.eastmoney.com/",
+}
+HEADERS_TENCENT = {
+    "User-Agent": "Mozilla/5.0 Chrome/120",
     "Referer": "https://finance.qq.com/",
 }
 
 
-def fetch_full_market_anomalies():
-  """全港股掃描：將異動股分類放入 3 個維度桶（每桶最多 10 隻，總計最多 30 隻）"""
-  url = "https://push2.eastmoney.com/api/qt/clist/get"
-  params = {
-      "pn": "1",
-      "pz": "200",  # 擴大掃描至前 200 隻活躍股
-      "po": "1",
-      "np": "1",
-      "ut": "bd1d9ddb040897000552d05017b2e207",
-      "fltt": "2",
-      "invt": "2",
-      "fid": "f6",  # 成交額排序
-      "fs": "m:116+t:3,m:116+t:4,m:116+t:1,m:116+t:2",
-      "fields": "f12,f14,f2,f3,f6,f10",
-  }
-
+def safe_float(v, d=0.0):
   try:
-    res = requests.get(url, params=params, headers=HEADERS, timeout=10)
-    res_json = res.json()
-    data = (
-        res_json.get("data", {}).get("diff", [])
-        if res_json and res_json.get("data")
-        else []
-    )
-  except Exception as e:
-    print(f"API 請求失敗: {e}")
-    data = []
+    if v in (None, "-", ""):
+      return d
+    return float(v)
+  except:
+    return d
 
-  dim3_burst = []  # 🔴 維度 3：爆發強勢桶 (如 2342、1888)
-  dim2_main = []  # 🟡 維度 2：主力近場桶
-  dim1_capital = []  # 🔵 維度 1：資金挺進桶
 
-  seen_codes = set()
+def format_amount(t):
+  if t >= 1e8:
+    return f"{t/1e8:.2f}億"
+  if t >= 1e4:
+    return f"{t/1e4:.0f}萬"
+  return f"{t:.0f}"
 
-  for item in data:
-    code = str(item.get("f12", "")).zfill(5)
-    name = str(item.get("f14", ""))
 
+def get_time_weighted_thresholds():
+  now = datetime.now(HK_TZ)
+  if (now.hour == 9 and now.minute >= 30) or (now.hour == 10 and now.minute <= 0):
+    return {"dim3_pct": 6.0, "dim3_vol": 1.5, "dim2_vol": 1.5}
+  return {"dim3_pct": 8.0, "dim3_vol": 2.0, "dim2_vol": 1.8}
+
+
+def fetch_with_retry(url, params=None, headers=None, timeout=10, retries=3):
+  for i in range(retries):
     try:
-      price = (
-          float(item.get("f2"))
-          if item.get("f2") is not None and item.get("f2") != "-"
-          else 0.0
-      )
-      pct = (
-          float(item.get("f3"))
-          if item.get("f3") is not None and item.get("f3") != "-"
-          else 0.0
-      )
-      turnover = (
-          float(item.get("f6"))
-          if item.get("f6") is not None and item.get("f6") != "-"
-          else 0.0
-      )
-      vol_ratio = (
-          float(item.get("f10"))
-          if item.get("f10") is not None and item.get("f10") != "-"
-          else 1.0
-      )
-    except (ValueError, TypeError):
-      continue
+      r = requests.get(url, params=params, headers=headers, timeout=timeout)
+      if r.status_code == 200 and r.text:
+        return r
+    except:
+      pass
+    time.sleep(0.5 + i * 0.5)
+  return None
 
-    # 過濾流動性過低的死寂股
-    if price <= 0 or turnover < 5000000 or code in seen_codes:
-      continue
 
-    # -------------------------------------------------------------
-    # 算子分流邏輯
-    # -------------------------------------------------------------
-    # 🔴 歸類為維度 3 (爆發桶)：升幅 >= 8% 或 (量比 >= 2.0 且 升幅 >= 5%)
-    if pct >= 8.0 or (vol_ratio >= 2.0 and pct >= 5.0):
-      dim3_burst.append({
-          "code": code,
-          "name": name,
-          "change_pct": round(pct, 2),
-          "amount": turnover,
-          "vol_ratio": round(vol_ratio, 1),
+def fetch_avg_amount_batch(codes):
+  def fetch_one(code):
+    try:
+      time.sleep(0.05)  # 溫和避開頻率限制
+      url = "https://push2.eastmoney.com/api/qt/stock/kline/get"
+      params = {
+          "secid": f"116.{code}",
+          "fields1": "f1,f2,f3,f4,f5,f6",
+          "fields2": "f51,f52,f53,f54,f55,f56,f57",
+          "klt": "101",
+          "fqt": "1",
+          "beg": "0",
+          "end": "20500101",
+          "lmt": "6",
+          "_": int(time.time() * 1000),
+      }
+      res = fetch_with_retry(
+          url, params=params, headers=HEADERS_EASTMONEY, timeout=6, retries=2
+      )
+      if not res:
+        return code, None, None
+      kl = res.json().get("data", {}).get("klines", [])
+      if len(kl) < 2:
+        return code, None, None
+      amts = []
+      for k in kl[:-1][-5:]:
+        p = k.split(",")
+        if len(p) >= 7:
+          v = safe_float(p[6])  # f57 成交額 (HKD)
+          if v > 0:
+            amts.append(v)
+      if not amts:
+        return code, None, None
+      return code, sum(amts) / len(amts), amts[-1]
+    except:
+      return code, None, None
+
+  mp = {}
+  with ThreadPoolExecutor(max_workers=8) as ex:
+    futs = {ex.submit(fetch_one, c): c for c in codes}
+    for f in as_completed(futs):
+      c, a5, y = f.result()
+      mp[c] = {"avg5": a5, "yesterday": y}
+  return mp
+
+
+def fetch_full_market_anomalies():
+  th = get_time_weighted_thresholds()
+  scans = [{"fid": "f6", "pz": "400"}, {"fid": "f3", "pz": "200"}]
+  all_items = []
+  seen = set()
+  for sc in scans:
+    url = "https://push2.eastmoney.com/api/qt/clist/get"
+    params = {
+        "pn": "1",
+        "pz": sc["pz"],
+        "po": "1",
+        "np": "1",
+        "ut": "bd1d9ddb040897000552d05017b2e207",
+        "fltt": "2",
+        "invt": "2",
+        "fid": sc["fid"],
+        "fs": "m:116+t:3,m:116+t:4,m:116+t:1,m:116+t:2",
+        "fields": "f12,f14,f2,f3,f6,f10,f20",
+    }
+    r = fetch_with_retry(
+        url, params=params, headers=HEADERS_EASTMONEY, timeout=10, retries=3
+    )
+    if not r:
+      continue
+    for it in r.json().get("data", {}).get("diff", []):
+      c = str(it.get("f12", "")).zfill(5)
+      if c not in seen:
+        all_items.append(it)
+        seen.add(c)
+
+  temp = []
+  cands = []
+  for it in all_items:
+    c = str(it.get("f12", "")).zfill(5)
+    n = str(it.get("f14", "")).strip()
+    if not n:
+      continue
+    price = safe_float(it.get("f2"))
+    pct = safe_float(it.get("f3"))
+    turn = safe_float(it.get("f6"))
+    vol = safe_float(it.get("f10"), 1.0)
+    if price <= 0.15 or turn < 5000000:
+      continue
+    base = {
+        "code": c,
+        "name": n,
+        "price": round(price, 3),
+        "change_pct": round(pct, 2),
+        "amount": turn,
+        "amount_str": format_amount(turn),
+        "vol_ratio": round(vol, 1),
+    }
+    temp.append((base, pct, vol, turn))
+    if (pct >= 3.0 or vol >= 1.5 or turn >= 15000000) and pct > 0:
+      cands.append(c)
+
+  avg_map = fetch_avg_amount_batch(cands[:60])
+  d3, d2, d1 = [], [], []
+
+  for base, pct, vol, turn in temp:
+    info = avg_map.get(base["code"], {})
+    avg5 = info.get("avg5")
+    yes = info.get("yesterday")
+    r5 = (turn / avg5) if avg5 and avg5 > 0 else 1.0
+    r1 = (turn / yes) if yes and yes > 0 else 1.0
+    surge = max(r5, r1)
+
+    has_history = avg5 is not None and yes is not None
+    base["surge_ratio"] = round(surge, 2)
+    base["surge_ratio_5d"] = round(r5, 2)
+    base["surge_ratio_1d"] = round(r1, 2)
+    base["amount_avg5"] = round(avg5, 2) if avg5 else 0
+
+    # 維度 3：爆發強勢
+    if pct >= th["dim3_pct"] or (vol >= th["dim3_vol"] and pct >= 5.0):
+      tag = "暴升爆量" if pct >= 10 else "首日爆發"
+      d3.append({
+          **base,
           "dim": 3,
-          "dim_tag": "暴升爆量" if pct >= 10 else "首日爆發",
-          "score": 300 + pct + vol_ratio * 5,
+          "dim_tag": tag,
+          "reason": (
+              f"{tag} ({pct:+.2f}% / 量比{vol:.1f} / 額增{surge:.1f}x)"
+          ),
+          "score": pct * 10 + vol * 5 + surge * 2,
       })
-      seen_codes.add(code)
+    # 維度 2：主力進場
+    elif vol >= th["dim2_vol"] and pct >= 1.5:
+      if surge >= 1.2 or vol >= 2.5:
+        d2.append({
+            **base,
+            "dim": 2,
+            "dim_tag": "主力進場",
+            "reason": (
+                f"主力進場 ({pct:+.2f}% / 量比{vol:.1f} / 額增{surge:.1f}x)"
+            ),
+            "score": vol * 20 + surge * 10 + pct * 2,
+        })
+    # 維度 1：資金挺進（補全你補充的容錯邏輯）
+    elif turn >= 30000000 and pct > 0:
+      if (has_history and (surge >= 1.5 or r1 >= 1.8)) or (
+          not has_history and turn >= 30000000
+      ):
+        d1.append({
+            **base,
+            "dim": 1,
+            "dim_tag": "資金挺進",
+            "reason": (
+                f"資金挺進 ({base['amount_str']} / 5日{r5:.1f}x /"
+                f" 昨日{r1:.1f}x)"
+            ),
+            "score": surge * 20 + turn / 1e7 + pct,
+        })
 
-    # 🟡 歸類為維度 2 (主力桶)：量比 >= 1.8 且 升幅 > 1.5%
-    elif vol_ratio >= 1.8 and pct >= 1.5:
-      dim2_main.append({
-          "code": code,
-          "name": name,
-          "change_pct": round(pct, 2),
-          "amount": turnover,
-          "vol_ratio": round(vol_ratio, 1),
-          "dim": 2,
-          "dim_tag": "主力進場",
-          "score": 200 + vol_ratio * 10 + pct,
-      })
-      seen_codes.add(code)
-
-    # 🔵 歸類為維度 1 (資金桶)：成交額 >= 3000萬 且 升幅 > 0
-    elif turnover >= 30000000 and pct > 0:
-      dim1_capital.append({
-          "code": code,
-          "name": name,
-          "change_pct": round(pct, 2),
-          "amount": turnover,
-          "vol_ratio": round(vol_ratio, 1),
-          "dim": 1,
-          "dim_tag": "資金挺進",
-          "score": 100 + (turnover / 1e8) + pct,
-      })
-      seen_codes.add(code)
-
-  # 每個維度內部按 score / 漲幅 排序，各取 Top 10
-  dim3_burst.sort(key=lambda x: x["score"], reverse=True)
-  dim2_main.sort(key=lambda x: x["score"], reverse=True)
-  dim1_capital.sort(key=lambda x: x["score"], reverse=True)
-
-  dim3_top10 = dim3_burst[:10]
-  dim2_top10 = dim2_main[:10]
-  dim1_top10 = dim1_capital[:10]
-
-  # 組合總榜：按 維度3 (優先) -> 維度2 -> 維度1 順序拼接，確保 2342 類型個股排最前
-  combined_list = dim3_top10 + dim2_top10 + dim1_top10
+  d3.sort(key=lambda x: (x["change_pct"], x["surge_ratio"]), reverse=True)
+  d2.sort(key=lambda x: (x["vol_ratio"], x["surge_ratio"]), reverse=True)
+  d1.sort(key=lambda x: (x["surge_ratio"], x["amount"]), reverse=True)
 
   return {
-      "combined": combined_list,  # 最多 30 隻
-      "dim3_burst": dim3_top10,  # 爆發桶 Top 10
-      "dim2_main": dim2_top10,  # 主力桶 Top 10
-      "dim1_capital": dim1_top10,  # 資金桶 Top 10
+      "combined": d3[:10] + d2[:10] + d1[:10],
+      "dim3_burst": d3[:10],
+      "dim2_main": d2[:10],
+      "dim1_capital": d1[:10],
   }
 
 
 def fetch_indices():
-  """抓取三大指數即時數據"""
   url = "https://qt.gtimg.cn/q=r_hkHSI,r_hkHSTECH,sh000001"
-  indices = []
+  idx = []
   try:
-    resp = requests.get(url, headers=HEADERS, timeout=8)
-    txt = resp.text
+    res = fetch_with_retry(url, headers=HEADERS_TENCENT, timeout=8, retries=2)
+    txt = res.text if res else ""
 
-    m_hsi = re.search(r'v_r_hkHSI="(.*)"', txt)
-    if m_hsi:
-      p = m_hsi.group(1).split("~")
-      price, prev = float(p[3]), float(p[4])
-      indices.append({
-          "name": "恒生指數",
-          "symbol": "HSI",
-          "price": round(price, 2),
-          "pct": round((price - prev) / prev * 100, 2),
-      })
+    def ph(m):
+      if not m:
+        return None
+      p = m.group(1).split("~")
+      if len(p) < 5 or not p[3] or not p[4]:
+        return None
+      pr = safe_float(p[3])
+      pv = safe_float(p[4])
+      if pr == 0 or pv == 0:
+        return None
+      return pr, (pr - pv) / pv * 100
 
-    m_tech = re.search(r'v_r_hkHSTECH="(.*)"', txt)
-    if m_tech:
-      p = m_tech.group(1).split("~")
-      price, prev = float(p[3]), float(p[4])
-      indices.append({
-          "name": "恒生科技",
-          "symbol": "HSTECH",
-          "price": round(price, 2),
-          "pct": round((price - prev) / prev * 100, 2),
-      })
+    for pat, na, sy in [
+        (r'v_r_hkHSI="(.*?)"', "恒生指數", "HSI"),
+        (r'v_r_hkHSTECH="(.*?)"', "恒生科技", "HSTECH"),
+    ]:
+      m = re.search(pat, txt)
+      r = ph(m)
+      if r:
+        idx.append({
+            "name": na,
+            "symbol": sy,
+            "price": round(r[0], 2),
+            "pct": round(r[1], 2),
+        })
 
-    m_sh = re.search(r'v_sh000001="(.*)"', txt)
-    if m_sh:
-      p = m_sh.group(1).split("~")
-      price = float(p[3]) if len(p) > 3 and p[3] else 0.0
-      prev = float(p[4]) if len(p) > 4 and p[4] else price
-      pct = ((price - prev) / prev * 100) if prev > 0 else 0.0
-      indices.append({
-          "name": "上證指數",
-          "symbol": "SSEC",
-          "price": round(price, 2),
-          "pct": round(pct, 2),
-      })
+    m = re.search(r'v_sh000001="(.*?)"', txt)
+    if m:
+      p = m.group(1).split("~")
+      if len(p) > 4:
+        pr = safe_float(p[3])
+        pv = safe_float(p[4], pr)
+        if pr > 0:
+          idx.append({
+              "name": "上證指數",
+              "symbol": "SSEC",
+              "price": round(pr, 2),
+              "pct": round((pr - pv) / pv * 100 if pv > 0 else 0, 2),
+          })
+  except:
+    pass
 
-  except Exception as e:
-    print(f"Index fetch error: {e}")
-
-  if len(indices) < 3:
-    return [
-        {"name": "恒生指數", "symbol": "HSI", "price": 0.0, "pct": 0.0},
-        {"name": "恒生科技", "symbol": "HSTECH", "price": 0.0, "pct": 0.0},
-        {"name": "上證指數", "symbol": "SSEC", "price": 0.0, "pct": 0.0},
-    ]
-  return indices
+  if len(idx) < 3:
+    for d in [
+        {"name": "恒生指數", "symbol": "HSI"},
+        {"name": "恒生科技", "symbol": "HSTECH"},
+        {"name": "上證指數", "symbol": "SSEC"},
+    ]:
+      if d["symbol"] not in {i["symbol"] for i in idx}:
+        idx.append({**d, "price": 0.0, "pct": 0.0})
+  return idx[:3]
 
 
 def main():
-  try:
-    anomaly_result = fetch_full_market_anomalies()
-    indices_data = fetch_indices()
+  ano = fetch_full_market_anomalies()
+  ids = fetch_indices()
+  out = {
+      "update_time": datetime.now(HK_TZ).strftime("%Y-%m-%d %H:%M:%S"),
+      "update_timestamp": int(time.time()),
+      "indices": ids,
+      "count": len(ano["combined"]),
+      "data": ano["combined"],
+      "categorized": {
+          "dim3": ano["dim3_burst"],
+          "dim2": ano["dim2_main"],
+          "dim1": ano["dim1_capital"],
+      },
+  }
 
-    out = {
-        "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "indices": indices_data,
-        "count": len(anomaly_result["combined"]),
-        "data": anomaly_result["combined"],  # 向上相容 index.html
-        "categorized": {
-            "dim3": anomaly_result["dim3_burst"],
-            "dim2": anomaly_result["dim2_main"],
-            "dim1": anomaly_result["dim1_capital"],
-        },
-    }
+  with open("hot_stocks.json", "w", encoding="utf-8") as f:
+    json.dump(out, f, ensure_ascii=False, indent=2)
 
-    with open("hot_stocks.json", "w", encoding="utf-8") as f:
-      json.dump(out, f, ensure_ascii=False, indent=2)
+  os.makedirs("www", exist_ok=True)
+  with open("www/hot_stocks.json", "w", encoding="utf-8") as f:
+    json.dump(out, f, ensure_ascii=False, indent=2)
 
-    os.makedirs("www", exist_ok=True)
-    with open("www/hot_stocks.json", "w", encoding="utf-8") as f:
-      json.dump(out, f, ensure_ascii=False, indent=2)
-
-    print(
-        f"SUCCESS: Generated {len(anomaly_result['combined'])} anomalies"
-        f" (Dim3: {len(anomaly_result['dim3_burst'])}, Dim2:"
-        f" {len(anomaly_result['dim2_main'])}, Dim1:"
-        f" {len(anomaly_result['dim1_capital'])})"
-    )
-
-  except Exception as e:
-    print(f"Main execution error: {e}")
+  print(f"SUCCESS {len(ano['combined'])} @ {out['update_time']}")
 
 
 if __name__ == "__main__":
