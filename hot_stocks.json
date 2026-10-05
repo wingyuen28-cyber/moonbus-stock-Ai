@@ -1,209 +1,25 @@
 {
-  "update_time": "2026-10-05 04:18:57",
+  "update_time": "2026-10-05 05:03:24",
   "indices": [
     {
       "name": "恒生指數",
       "symbol": "HSI",
-      "price": 23952.28,
-      "change": -20.01,
-      "pct": -0.08
+      "price": 23925.17,
+      "pct": -0.2
     },
     {
       "name": "恒生科技",
       "symbol": "HSTECH",
-      "price": 4169.36,
-      "change": 11.42,
-      "pct": 0.27
+      "price": 4164.04,
+      "pct": 0.15
     },
     {
       "name": "上證指數",
       "symbol": "SSEC",
       "price": 3842.19,
-      "change": 11.74,
       "pct": 0.31
     }
   ],
-  "count": 15,
-  "data": [
-    {
-      "code": "00700",
-      "name": "騰訊控股",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "09988",
-      "name": "阿里巴巴-W",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "03690",
-      "name": "美團-W",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "01810",
-      "name": "小米集團-W",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "09618",
-      "name": "京東集團-SW",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "09888",
-      "name": "百度集團-SW",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "02015",
-      "name": "理想汽車-W",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "09868",
-      "name": "小鵬汽車-W",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "09866",
-      "name": "蔚來-SW",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "01211",
-      "name": "比亞迪股份",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "00981",
-      "name": "中芯國際",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "01347",
-      "name": "華虹半導體",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "02800",
-      "name": "盈富基金",
-      "category": "ETF",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "03033",
-      "name": "南方恒生科技",
-      "category": "ETF",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    },
-    {
-      "code": "00005",
-      "name": "匯豐控股",
-      "category": "港股主板",
-      "change_pct": 0.0,
-      "amount": 10000000.0,
-      "weibi": 0.0,
-      "range_pct": 0.0,
-      "score": 10.0,
-      "reason": "休市/數據加載中",
-      "is_gem": false
-    }
-  ]
+  "count": 0,
+  "data": []
 }
