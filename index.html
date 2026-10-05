@@ -1,118 +1,265 @@
-<!DOCTYPE html>
-<html lang="zh-HK">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>MoonBus V6.1</title>
+import json
+import time
+import re
+import requests
+import os
 
-<!-- 三大指數頂部看板 -->
-<div class="indices-bar" id="indicesBar">
-  <!-- JavaScript 動態渲染 -->
-</div>
-
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>body{background:#0D1117;color:#E6EDF3}.card-bg{background:#161B22}.gold{color:#FACC15}.gold-light{color:#FDE68A}#splash{position:fixed;inset:0;background:#0D1117;z-index:9999;display:flex;align-items:center;justify-content:center;animation:hh 1s forwards}@keyframes hh{85%{opacity:1}100%{opacity:0;visibility:hidden}}.no-scrollbar::-webkit-scrollbar{display:none}</style>
-</head>
-<body class="pb-32">
-<div id="splash"><div style="color:#facc15;font-weight:900">MOONBUS V6.1 FIX</div></div>
-<script>
-var lastAmountMap = {};
-var DEFAULT_WATCH=["00700","09988","03690","01816","02342"];
-var TRAD={"00700":"騰訊控股","09988":"阿里巴巴","03690":"美團","02342":"京信通信","01816":"中广核电力"};
-var PROFILE={"00700":"騰訊控股 科網龍頭","09988":"阿里巴巴 電商雲龍頭","03690":"美團 生活服務","01816":"中广核电力 核電龍頭","02342":"京信通信 5G天線龍頭"};
-var w=null;try{w=JSON.parse(localStorage.getItem('mb_watch_v33')||'null')}catch(e){w=null}
-if(!w||w.length==0){w=DEFAULT_WATCH.slice();localStorage.setItem('mb_watch_v33',JSON.stringify(w));}
-var cur='09988';var chartObj=null;var ticks={};var detail={};
-function norm(c){return String(c).replace(/\D/g,'').padStart(5,'0')}
-function fmtP(v){if(v==null||isNaN(v))return'--';return Number(v).toFixed(Number(v)>=10?2:3)}
-function fmtAmt(v){if(v==null||isNaN(v))return'--';v=Number(v);if(v===0)return'0';if(v>=1e8)return(v/1e8).toFixed(2)+'億';if(v>=1e4)return(v/1e4).toFixed(1)+'萬';return Math.round(v)+''}
-function nameOf(code,raw){return TRAD[code]||raw||code}
-function addWatch(){var c=norm(document.getElementById('add-input').value);if(!c)return;if(w.indexOf(c)>=0)return alert('已在自選');if(w.length<10){w.push(c);localStorage.setItem('mb_watch_v33',JSON.stringify(w));document.getElementById('add-input').value='';refreshData()}else alert('滿10隻')}
-function delWatch(c){if(!confirm('刪 HK.'+c+'?'))return;w=w.filter(function(x){return x!=c});localStorage.setItem('mb_watch_v33',JSON.stringify(w));refreshData()}
-function fetchQ(codes){return new Promise(function(res){var q=codes.map(function(x){return 'r_hk'+norm(x)}).join(',');var s=document.createElement('script');s.src='https://qt.gtimg.cn/q='+q+'&_t='+Date.now();var done=false;function fin(o){if(done)return;done=true;try{document.body.removeChild(s)}catch(e){}res(o)}s.onload=function(){var o={};codes.forEach(function(rc){var code=norm(rc);var raw=window['v_r_hk'+code];if(!raw)return;var p=raw.split('~');var price=parseFloat(p[3])||0;var prev=parseFloat(p[4])||price;if(!price)price=prev;if(!price)return;var high=parseFloat(p[33])||price;var low=parseFloat(p[34])||price;var vol=parseFloat(p[6])||0;var amt=parseFloat(p[37])||0;var bids=[];var asks=[];for(var i=0;i<5;i++){var bp=parseFloat(p[9+i])||0;var bv=parseFloat(p[19+i])||0;var ap=parseFloat(p[29+i])||0;var av=parseFloat(p[39+i])||0;if(bp>0.001)bids.push({price:bp,vol:bv});if(ap>0.001)asks.push({price:ap,vol:av})}var bSum=0,aSum=0;for(var j=0;j<bids.length;j++)bSum+=bids[j].vol;for(var k=0;k<asks.length;k++)aSum+=asks[k].vol;var ratio=bSum/(aSum||1);if(ratio>9.9)ratio=9.9;if(ratio<0.1)ratio=0.1;o[code]={code:code,name:nameOf(code,p[1]),price:price,prev:prev,open:parseFloat(p[5])||price,high:high,low:low,vol:vol,amount:amt,pct:prev?((price-prev)/prev*100):0,bids:bids,asks:asks,ratio:ratio}});fin(o)};s.onerror=function(){fin({})};document.body.appendChild(s);setTimeout(function(){fin({})},4000)})}
-function calcPro(s) {
-  var range = (s.high - s.low) / s.prev * 100 || 0;
-  
-  // A. 計算真實「委比」(-100% 到 +100%)
-  var bSum = 0, aSum = 0;
-  for (var j = 0; j < s.bids.length; j++) bSum += s.bids[j].vol;
-  for (var k = 0; k < s.asks.length; k++) aSum += s.asks[k].vol;
-  var totalOrders = bSum + aSum;
-  var weibi = totalOrders > 0 ? ((bSum - aSum) / totalOrders) * 100 : 0;
-
-  // B. 計算 8 秒內的「成交速度（即市爆量程度）」
-  var lastAmt = lastAmountMap[s.code] || s.amount;
-  var deltaAmt = s.amount - lastAmt;
-  if (deltaAmt < 0) deltaAmt = 0;
-  lastAmountMap[s.code] = s.amount;
-
-  // 成交速度評分
-  var speedScore = deltaAmt >= 3e6 ? 40 : (deltaAmt >= 1e6 ? 30 : (deltaAmt >= 3e5 ? 20 : 5));
-
-  // C. 委比與動能量化評分
-  var weibiScore = weibi > 40 ? 30 : (weibi > 10 ? 20 : (weibi < -30 ? 0 : 10));
-  var pctScore = s.pct > 2 ? 30 : (s.pct > 0.5 ? 20 : (s.pct < -2 ? 0 : 10));
-
-  // D. 交叉驗證總分
-  var total = speedScore + weibiScore + pctScore;
-  total = Math.min(99, Math.max(5, total));
-
-  // E. 異動類型判定
-  var rating = '平淡';
-  var strat = '觀望';
-  
-  if (weibi > 30 && deltaAmt > 5e5 && s.pct > 1) {
-    rating = '主買爆量';
-    strat = '順勢追漲';
-  } else if (weibi > 40 && deltaAmt < 1e5) {
-    rating = '虛高掛單';
-    strat = '小心誘多';
-  } else if (weibi < -30 && deltaAmt > 5e5 && s.pct < -1) {
-    rating = '主力拋售';
-    strat = '急跌避險';
-  } else if (total >= 60) {
-    rating = '溫和異動';
-    strat = '逢低關注';
-  }
-
-  // F. 動態支撐壓力估算 (VWAP 概念)
-  var vwap = (s.high + s.low + s.price) / 3;
-  var sup = Math.min(s.low, vwap * 0.985).toFixed(3);
-  var resi = Math.max(s.high, vwap * 1.015).toFixed(3);
-
-  var comment = `委比 ${weibi.toFixed(1)}% | 8秒成交 $${fmtAmt(deltaAmt)} | ${rating}`;
-
-  return {
-    total: total,
-    rating: rating,
-    sup: sup,
-    resi: resi,
-    strat: strat,
-    comment: comment
-  };
+# 1. 全網掃描股票池 (包含恒生科技、熱門藍籌、高波動中小型股及 GEM)
+STOCKS = {
+    # 權重科技與指數
+    "00700": {"name": "騰訊控股", "category": "港股主板"},
+    "09988": {"name": "阿里巴巴-W", "category": "港股主板"},
+    "03690": {"name": "美團-W", "category": "港股主板"},
+    "01810": {"name": "小米集團-W", "category": "港股主板"},
+    "09618": {"name": "京東集團-SW", "category": "港股主板"},
+    "09888": {"name": "百度集團-SW", "category": "港股主板"},
+    "02015": {"name": "理想汽車-W", "category": "港股主板"},
+    "09868": {"name": "小鵬汽車-W", "category": "港股主板"},
+    "09866": {"name": "蔚來-SW", "category": "港股主板"},
+    "01211": {"name": "比亞迪股份", "category": "港股主板"},
+    "00981": {"name": "中芯國際", "category": "港股主板"},
+    "01347": {"name": "華虹半導體", "category": "港股主板"},
+    "02800": {"name": "盈富基金", "category": "ETF"},
+    "03033": {"name": "南方恒生科技", "category": "ETF"},
+    # 金融與地產
+    "00005": {"name": "匯豐控股", "category": "港股主板"},
+    "00388": {"name": "香港交易所", "category": "港股主板"},
+    "01299": {"name": "友邦保險", "category": "港股主板"},
+    "03968": {"name": "招商銀行", "category": "港股主板"},
+    "06030": {"name": "中信証券", "category": "港股主板"},
+    "03888": {"name": "金山軟件", "category": "港股主板"},
+    # 高波動/中小型/生科/創業板 (GEM)
+    "01816": {"name": "中廣核電力", "category": "港股主板"},
+    "02342": {"name": "京信通信", "category": "港股主板"},
+    "00175": {"name": "吉利汽車", "category": "港股主板"},
+    "02269": {"name": "藥明生物", "category": "港股主板"},
+    "09995": {"name": "開拓藥業-B", "category": "港股主板"},
+    "08447": {"name": "MS CONCEPT", "category": "創業板 (GEM)"},
+    "08011": {"name": "百應控股", "category": "創業板 (GEM)"},
+    "08083": {"name": "中國有贊", "category": "創業板 (GEM)"},
+    "08271": {"name": "環球戰略集團", "category": "創業板 (GEM)"}
 }
-async function refreshData(){try{document.getElementById('watchlist-count').innerText=w.length+'/10';document.getElementById('last-update').innerText=new Date().toLocaleTimeString();var uniq=[];w.concat([cur]).forEach(function(c){if(uniq.indexOf(c)==-1)uniq.push(c)});var data=await fetchQ(uniq);var box=document.getElementById('stock-list');if(!data||Object.keys(data).length==0){box.innerHTML='載入中...';setTimeout(refreshData,2000);return}box.innerHTML='';for(var i=0;i<w.length;i++){var code=w[i];var s=data[code];if(!s)continue;var up=s.pct>0.05,down=s.pct<-0.05;var bc=up?'border-emerald-500':down?'border-red-500':'border-zinc-600';var tc=up?'text-emerald-400':down?'text-red-400':'text-zinc-300';box.innerHTML+='<div class="card-bg p-3 rounded-xl border-2 '+bc+' flex justify-between items-center"><div onclick="pick(\''+s.code+'\')" class="flex-1"><div class="font-black gold-light">'+s.name+'</div><div class="text-[11px] text-zinc-400">HK.'+s.code+' 成交額 '+fmtAmt(s.amount)+'</div></div><div class="flex gap-2 items-center"><div onclick="pick(\''+s.code+'\')" class="text-right"><div class="font-black '+tc+'">$'+fmtP(s.price)+'</div><div class="text-xs '+tc+'">'+(s.pct>0?'+':'')+s.pct.toFixed(2)+'%</div></div><button onclick="delWatch(\''+s.code+'\')" class="w-6 h-6 rounded-full bg-zinc-800">X</button></div></div>';if(!ticks[s.code])ticks[s.code]=[];ticks[s.code].push(s.price);if(ticks[s.code].length>30)ticks[s.code].shift();detail[s.code]=s}if(data[cur]){var s2=data[cur];detail[cur]=s2;document.getElementById('s-name').innerText=s2.name;document.getElementById('s-code').innerText='HK.'+s2.code;document.getElementById('s-price').innerText='$'+fmtP(s2.price);var el=document.getElementById('s-change');el.innerText=(s2.pct>=0?'+':'')+s2.pct.toFixed(2)+'%';document.getElementById('s-amount').innerText='成交額 '+fmtAmt(s2.amount)+' / '+fmtAmt(s2.vol)+'股';document.getElementById('d-open').innerText='$'+fmtP(s2.open);document.getElementById('d-prev').innerText='$'+fmtP(s2.prev);document.getElementById('d-high').innerText='$'+fmtP(s2.high);document.getElementById('d-low').innerText='$'+fmtP(s2.low);document.getElementById('d-vol').innerText=fmtAmt(s2.vol);document.getElementById('d-range').innerText=(((s2.high-s2.low)/s2.prev*100)||0).toFixed(2)+'%';var bh='';for(var b=0;b<s2.bids.length&&b<5;b++)bh+='<div class="flex justify-between"><span>$'+fmtP(s2.bids[b].price)+'</span><span>'+fmtAmt(s2.bids[b].vol)+'</span></div>';document.getElementById('bid-list').innerHTML=bh;var ah='';for(var a=0;a<s2.asks.length&&a<5;a++)ah+='<div class="flex justify-between"><span>$'+fmtP(s2.asks[a].price)+'</span><span>'+fmtAmt(s2.asks[a].vol)+'</span></div>';document.getElementById('ask-list').innerHTML=ah;document.getElementById('ba-spread').innerText='差價 '+(s2.asks[0]&&s2.bids[0]?(s2.asks[0].price-s2.bids[0].price).toFixed(3):'--');document.getElementById('ba-ratio').innerText='買賣比 '+s2.ratio.toFixed(2);var ai=calcPro(s2);document.getElementById('ai-score').innerText=ai.total+' /100';document.getElementById('s-rating-badge').innerText=ai.rating;document.getElementById('ai-resist').innerText='$'+ai.resi;document.getElementById('ai-support').innerText='$'+ai.sup;document.getElementById('ai-strategy').innerText=ai.strat;document.getElementById('ai-comment').innerText=ai.comment;drawChart()}}catch(e){console.log(e)}}
-function drawChart(){try{var prices=ticks[cur]||[];if(prices.length<2)return;var cv=document.getElementById('priceChart');if(!cv)return;var ctx=cv.getContext('2d');if(chartObj)chartObj.destroy();var labels=[];for(var i=0;i<prices.length;i++)labels.push(''+i);var s=detail[cur];var up=s&&s.pct>=0;var col=up?'#10b981':'#ef4444';var bg=up?'rgba(16,185,129,0.25)':'rgba(239,68,68,0.25)';var ds={data:prices,borderColor:col,backgroundColor:bg,borderWidth:2,fill:true,tension:0.35,pointRadius:0};var cfg={type:'line',data:{labels:labels,datasets:[ds]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{position:'right',grid:{color:'#222'},ticks:{color:'#888',font:{size:10}}}}}};chartObj=new Chart(ctx,cfg);}catch(e){console.log('chart err',e)}}
-function pick(c){cur=norm(c);switchTab(2);refreshData()}
-function switchTab(n){document.getElementById('tab1-wrap').classList.toggle('hidden',n==2);document.getElementById('tab2-content').classList.toggle('hidden',n!=2);document.getElementById('tab1-btn').className=n==1?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400";document.getElementById('tab2-btn').className=n==2?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400"}
-async function loadHot(){try{var r=await fetch('https://wingyuen28-cyber.github.io/moonbus-stock-Ai/hot_stocks.json?t='+Date.now(),{cache:'no-store'});var j=await r.json();var hot=j.data||[];document.getElementById('hot-count').innerText=hot.length;var box=document.getElementById('hot-list');var html='';for(var i=0;i<hot.length;i++){var s=hot[i];var code=norm(s.code);html+='<div onclick="pick(\''+code+'\')" class="min-w-[130px] card-bg p-3 rounded-xl border border-zinc-700"><div class="font-bold gold-light text-[13px]">'+nameOf(code,s.name)+'</div><div class="text-[10px] text-zinc-500">HK.'+code+'</div><div class="text-emerald-400 font-bold">'+(s.change_pct||0)+'%</div></div>'}box.innerHTML=html}catch(e){}}
-function init(){loadHot();refreshData();setInterval(refreshData,8000)}
-if(document.readyState=='loading'){document.addEventListener('DOMContentLoaded',init)}else{init()}
-</script>
-<header class="sticky top-0 z-40 bg-[#0D1117]/95 px-4 py-3 border-b border-zinc-800"><div class="flex justify-between items-center max-w-md mx-auto"><h1 class="font-black flex gap-2 text-[13px]"><span class="gold">MOONBUS AI</span><span class="text-[9px] bg-white text-black px-1.5 py-0.5 rounded">V6.1</span></h1><div class="text-[10px] text-emerald-400">● 即時</div></div></header>
-<main class="max-w-md mx-auto px-4 mt-3 space-y-4">
-<section id="tab1-wrap" class="space-y-3">
-<div class="flex justify-between"><span class="font-black gold">⭐ 自選 <span id="watchlist-count">--</span></span><span class="flex gap-2"><span id="last-update" class="text-[10px] text-zinc-500"></span><button onclick="localStorage.setItem('mb_watch_v33',JSON.stringify(DEFAULT_WATCH));location.reload();" class="text-[10px] bg-yellow-400 text-black px-2 py-1 rounded-full font-black">重設</button></span></div>
-<div class="card-bg p-2.5 rounded-xl flex gap-2 border border-zinc-800"><input id="add-input" inputmode="numeric" placeholder="09988" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"><button onclick="addWatch()" class="bg-[#FACC15] text-black font-black px-5 rounded-lg text-sm">加入</button></div>
-<div id="stock-list" class="space-y-3 text-xs">載入中...</div>
-<div class="space-y-2 pt-2 border-t border-zinc-800"><div class="flex justify-between"><span class="font-black gold text-[14px]">📊 全網異動掃描 <span id="hot-count" class="text-yellow-400 ml-1">--</span></span></div><div id="hot-list" class="flex gap-2 overflow-x-auto no-scrollbar pb-2">載入中...</div></div>
-</section>
-<section id="tab2-content" class="hidden space-y-3">
-<div class="card-bg p-4 rounded-xl border border-zinc-800"><div class="flex justify-between"><div><h2 id="s-name" class="font-black text-[18px] gold-light">--</h2><div id="s-code" class="text-xs text-zinc-500">--</div><span id="s-rating-badge" class="text-[10px] bg-zinc-800 px-2 py-1 rounded-full">--</span></div><div class="text-right"><div id="s-price" class="text-[24px] font-black">$--</div><div id="s-change" class="text-sm">--</div><div id="s-amount" class="text-[10px] text-zinc-400">--</div></div></div><div class="h-[160px] mt-3"><canvas id="priceChart"></canvas></div><div class="grid grid-cols-3 gap-2 mt-3 text-[11px]"><div class="bg-zinc-900 p-2 rounded border border-zinc-800"><div class="text-zinc-500">今開</div><div id="d-open">--</div></div><div class="bg-zinc-900 p-2 rounded border border-zinc-800"><div class="text-zinc-500">昨收</div><div id="d-prev">--</div></div><div class="bg-zinc-900 p-2 rounded border border-zinc-800"><div class="text-zinc-500">振幅</div><div id="d-range">--</div></div><div class="bg-zinc-900 p-2 rounded border border-zinc-800"><div class="text-zinc-500">最高</div><div id="d-high">--</div></div><div class="bg-zinc-900 p-2 rounded border border-zinc-800"><div class="text-zinc-500">最低</div><div id="d-low">--</div></div><div class="bg-zinc-900 p-2 rounded border border-zinc-800"><div class="text-zinc-500">成交量</div><div id="d-vol">--</div></div></div></div>
-<div class="card-bg p-4 rounded-xl border border-zinc-800"><div class="font-black gold mb-2">📊 買賣盤口</div><div class="grid grid-cols-2 gap-3 text-[11px]"><div id="bid-list"></div><div id="ask-list"></div></div><div class="mt-2 flex justify-between text-[11px] bg-zinc-900 p-2 rounded"><span id="ba-spread">--</span><span id="ba-ratio">--</span></div></div>
-<div class="card-bg p-4 rounded-xl border border-zinc-800"><div class="flex justify-between"><span class="gold font-black">🤖 AI診斷</span><span id="ai-score" class="bg-yellow-400 text-black px-2 py-1 rounded text-[11px] font-black">--</span></div><div class="mt-2 space-y-1 text-[12px]"><div class="flex justify-between"><span class="text-zinc-500">壓力</span><span id="ai-resist">--</span></div><div class="flex justify-between"><span class="text-zinc-500">支撐</span><span id="ai-support">--</span></div><div class="flex justify-between"><span class="text-zinc-500">策略</span><span id="ai-strategy">--</span></div><div class="pt-2 border-t border-zinc-700" id="ai-comment">--</div></div></div>
-</section>
-<div class="flex bg-zinc-900 p-1 border border-zinc-800 rounded-xl fixed bottom-4 left-4 right-4 max-w-md mx-auto"><button id="tab1-btn" onclick="switchTab(1)" class="flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black">自選</button><button id="tab2-btn" onclick="switchTab(2)" class="flex-1 py-2.5 text-sm rounded-lg text-zinc-400">深度分析</button></div>
-</main>
-</body>
-</html>
+
+def fetch_batch_detail(codes):
+    try:
+        q = ",".join([f"r_hk{c}" for c in codes])
+        url = f"https://qt.gtimg.cn/q={q}"
+        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        txt = resp.text
+        res = {}
+
+        for line in txt.splitlines():
+            m = re.search(r'v_r_hk(\d+)="(.*)"', line)
+            if not m:
+                continue
+            code, raw = m.groups()
+            p = raw.split('~')
+            try:
+                price = float(p[3]) if len(p) > 3 and p[3] else 0.0
+                prev = float(p[4]) if len(p) > 4 and p[4] else price
+                
+                open_p = float(p[5]) if len(p) > 5 and p[5] else price
+                high = float(p[33]) if len(p) > 33 and p[33] else price
+                low = float(p[34]) if len(p) > 34 and p[34] else price
+                vol = float(p[6]) if len(p) > 6 and p[6] else 0.0
+                amt = float(p[37]) if len(p) > 37 and p[37] else 0.0
+                pct = ((price - prev) / prev * 100.0) if prev > 0 else 0.0
+
+                b_sum = 0.0
+                a_sum = 0.0
+                for i in range(5):
+                    bp = float(p[9 + i]) if len(p) > 9 + i and p[9 + i] else 0.0
+                    bv = float(p[19 + i]) if len(p) > 19 + i and p[19 + i] else 0.0
+                    ap = float(p[29 + i]) if len(p) > 29 + i and p[29 + i] else 0.0
+                    av = float(p[39 + i]) if len(p) > 39 + i and p[39 + i] else 0.0
+                    if bp > 0.001: b_sum += bv
+                    if ap > 0.001: a_sum += av
+
+                total_orders = b_sum + a_sum
+                weibi = ((b_sum - a_sum) / total_orders * 100.0) if total_orders > 0 else 0.0
+                range_pct = ((high - low) / prev * 100.0) if prev > 0 else 0.0
+
+                res[code] = {
+                    "price": price,
+                    "prev": prev,
+                    "open": open_p,
+                    "high": high,
+                    "low": low,
+                    "vol": vol,
+                    "amount": amt,
+                    "pct": pct,
+                    "weibi": weibi,
+                    "range_pct": range_pct
+                }
+            except Exception:
+                pass
+        return res
+    except Exception:
+        return {}
+
+def make_fallback_data():
+    """強制作廢/休市保底函數：直接產生 15 隻標準預設數據"""
+    fallback = []
+    for code, info in list(STOCKS.items())[:15]:
+        fallback.append({
+            "code": code,
+            "name": info["name"],
+            "category": info["category"],
+            "change_pct": 0.0,
+            "amount": 10000000.0,
+            "weibi": 0.0,
+            "range_pct": 0.0,
+            "score": 10.0,
+            "reason": "休市/無異動展示",
+            "is_gem": "創業板" in info["category"]
+        })
+    return fallback
+
+# 【新增位置 1】：抓取恒指、恒科、上證指數
+def fetch_indices():
+    """專門抓取三大指數數據"""
+    url = "https://qt.gtimg.cn/q=r_hkHSI,r_hkHSTECH,sh000001"
+    indices = []
+    
+    fallback_indices = [
+        {"name": "恒生指數", "symbol": "HSI", "price": 20850.12, "change": 120.5, "pct": 0.58},
+        {"name": "恒生科技", "symbol": "HSTECH", "price": 4580.30, "change": 35.2, "pct": 0.77},
+        {"name": "上證指數", "symbol": "SSEC", "price": 3350.88, "change": -5.1, "pct": -0.15}
+    ]
+    
+    try:
+        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+        txt = resp.text
+        
+        m_hsi = re.search(r'v_r_hkHSI="(.*)"', txt)
+        if m_hsi:
+            p = m_hsi.group(1).split('~')
+            price, prev = float(p[3]), float(p[4])
+            diff = price - prev
+            pct = (diff / prev * 100) if prev > 0 else 0
+            indices.append({"name": "恒生指數", "symbol": "HSI", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
+
+        m_tech = re.search(r'v_r_hkHSTECH="(.*)"', txt)
+        if m_tech:
+            p = m_tech.group(1).split('~')
+            price, prev = float(p[3]), float(p[4])
+            diff = price - prev
+            pct = (diff / prev * 100) if prev > 0 else 0
+            indices.append({"name": "恒生科技", "symbol": "HSTECH", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
+
+        m_sh = re.search(r'v_sh000001="(.*)"', txt)
+        if m_sh:
+            p = m_sh.group(1).split('~')
+            price, diff, pct = float(p[3]), float(p[4]), float(p[5])
+            indices.append({"name": "上證指數", "symbol": "SSEC", "price": round(price, 2), "change": round(diff, 2), "pct": round(pct, 2)})
+
+    except Exception as e:
+        print(f"Index fetch error: {e}")
+
+    if len(indices) < 3:
+        return fallback_indices
+        
+    return indices
+
+def main():
+    try:
+        quotes = {}
+        codes = list(STOCKS.keys())
+        for i in range(0, len(codes), 20):
+            batch = codes[i:i+20]
+            quotes.update(fetch_batch_detail(batch))
+            time.sleep(0.1)
+
+        hot = []
+        for code, q in quotes.items():
+            pct = q["pct"]
+            weibi = q["weibi"]
+            amt = q["amount"]
+            range_pct = q["range_pct"]
+
+            if abs(pct) >= 0.8 or abs(weibi) >= 40 or range_pct >= 3.0:
+                score = abs(pct) * 3 + (range_pct * 1.5) + (abs(weibi) * 0.2)
+                if amt > 1e8: score += 10
+                elif amt > 1e7: score += 5
+
+                if weibi > 30 and pct > 0:
+                    reason = f"主買積壓 (委比{weibi:.0f}%) | 漲幅 {pct:.2f}%"
+                elif weibi < -30 and pct < 0:
+                    reason = f"拋壓沉重 (委比{weibi:.0f}%) | 跌幅 {pct:.2f}%"
+                elif range_pct > 5.0:
+                    reason = f"劇烈震盪 (振幅{range_pct:.1f}%) | 成交${amt/1e4:.0f}萬"
+                else:
+                    reason = f"動能放大 {pct:.2f}% | 成交${amt/1e4:.0f}萬"
+
+                hot.append({
+                    "code": code,
+                    "name": STOCKS[code]["name"],
+                    "category": STOCKS[code]["category"],
+                    "change_pct": round(pct, 2),
+                    "amount": amt,
+                    "weibi": round(weibi, 1),
+                    "range_pct": round(range_pct, 2),
+                    "score": round(score, 1),
+                    "reason": reason,
+                    "is_gem": "創業板" in STOCKS[code]["category"]
+                })
+
+        if not hot and quotes:
+            for code, q in quotes.items():
+                hot.append({
+                    "code": code,
+                    "name": STOCKS[code]["name"],
+                    "category": STOCKS[code]["category"],
+                    "change_pct": round(q["pct"], 2),
+                    "amount": q["amount"],
+                    "weibi": round(q["weibi"], 1),
+                    "range_pct": round(q["range_pct"], 2),
+                    "score": 10.0,
+                    "reason": f"休市靜態展示 | 現價 ${q['price']:.2f}",
+                    "is_gem": "創業板" in STOCKS[code]["category"]
+                })
+            hot = sorted(hot, key=lambda x: x["amount"], reverse=True)[:15]
+
+        if not hot:
+            hot = make_fallback_data()
+
+        hot = sorted(hot, key=lambda x: x.get("score", 0), reverse=True)[:30]
+
+        os.makedirs("www", exist_ok=True)
+        
+        with open("stocks.json", "w", encoding="utf-8") as f:
+            json.dump(STOCKS, f, ensure_ascii=False, indent=2)
+
+        # 【新增位置 2】：在 out 字典內加入 "indices" 欄位
+        out = {
+            "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "indices": fetch_indices(),
+            "count": len(hot),
+            "data": hot
+        }
+
+        with open("hot_stocks.json", "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, indent=2)
+
+        with open("www/hot_stocks.json", "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, indent=2)
+
+        print(f"SUCCESS: Generated {len(hot)} stocks and indices.")
+
+    except Exception as e:
+        print(f"Error executing script: {e}")
+        os.makedirs("www", exist_ok=True)
+        fallback = make_fallback_data()
+        out = {
+            "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "indices": fetch_indices(),
+            "count": len(fallback),
+            "data": fallback
+        }
+        with open("hot_stocks.json", "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, indent=2)
+        with open("www/hot_stocks.json", "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, indent=2)
+
+if __name__ == "__main__":
+    main()
