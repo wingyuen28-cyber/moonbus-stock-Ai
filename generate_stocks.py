@@ -15,19 +15,19 @@ HEADERS = {
 
 
 def fetch_full_market_anomalies():
-  """動態掃描全港股（成交最活躍 Top 150），套用三維度動能算子捕捉爆發股（如 01888、02342）"""
+  """全港股掃描：將異動股分類放入 3 個維度桶（每桶最多 10 隻，總計最多 30 隻）"""
   url = "https://push2.eastmoney.com/api/qt/clist/get"
   params = {
       "pn": "1",
-      "pz": "150",  # 動態抓取全港股成交最活躍的前 150 隻
+      "pz": "200",  # 擴大掃描至前 200 隻活躍股
       "po": "1",
       "np": "1",
       "ut": "bd1d9ddb040897000552d05017b2e207",
       "fltt": "2",
       "invt": "2",
-      "fid": "f6",  # 按成交額 f6 排序，精準捕捉主力資金
-      "fs": "m:116+t:3,m:116+t:4,m:116+t:1,m:116+t:2",  # 港股主板 + 創業板
-      "fields": "f12,f14,f2,f3,f6,f10",  # 代碼, 名稱, 最新價, 漲跌幅, 成交額, 量比
+      "fid": "f6",  # 成交額排序
+      "fs": "m:116+t:3,m:116+t:4,m:116+t:1,m:116+t:2",
+      "fields": "f12,f14,f2,f3,f6,f10",
   }
 
   try:
@@ -39,10 +39,14 @@ def fetch_full_market_anomalies():
         else []
     )
   except Exception as e:
-    print(f"全網 API 請求失敗: {e}")
+    print(f"API 請求失敗: {e}")
     data = []
 
-  hot_list = []
+  dim3_burst = []  # 🔴 維度 3：爆發強勢桶 (如 2342、1888)
+  dim2_main = []  # 🟡 維度 2：主力近場桶
+  dim1_capital = []  # 🔵 維度 1：資金挺進桶
+
+  seen_codes = set()
 
   for item in data:
     code = str(item.get("f12", "")).zfill(5)
@@ -72,89 +76,83 @@ def fetch_full_market_anomalies():
     except (ValueError, TypeError):
       continue
 
-    # 過濾成交額低於 500 萬港元的低流動性個股
-    if price <= 0 or turnover < 5000000:
+    # 過濾流動性過低的死寂股
+    if price <= 0 or turnover < 5000000 or code in seen_codes:
       continue
 
     # -------------------------------------------------------------
-    # 三維度動能加權算子 (總分 100)
+    # 算子分流邏輯
     # -------------------------------------------------------------
-    # 🔴 1. 爆發維度 (漲幅)
-    burst_score = 0
-    if pct >= 15:
-      burst_score = 40
-    elif pct >= 8:
-      burst_score = 30
-    elif pct >= 3:
-      burst_score = 20
-    elif pct > 0:
-      burst_score = 10
-
-    # 🟡 2. 主力維度 (量比相對放量)
-    main_score = 0
-    if vol_ratio >= 2.5:
-      main_score = 35
-    elif vol_ratio >= 1.5:
-      main_score = 25
-    elif vol_ratio >= 1.1:
-      main_score = 15
-
-    # 🔵 3. 資金維度 (成交金額絕對值)
-    capital_score = 0
-    if turnover >= 30000000:  # 3000萬以上
-      capital_score = 25
-    elif turnover >= 10000000:  # 1000萬以上
-      capital_score = 15
-    elif turnover >= 5000000:  # 500萬以上
-      capital_score = 5
-
-    total_score = burst_score + main_score + capital_score
-
-    # 計算點亮燈號數量 (1~3 燈)
-    dim_count = 0
-    if burst_score >= 20:
-      dim_count += 1
-    if main_score >= 15:
-      dim_count += 1
-    if capital_score >= 15:
-      dim_count += 1
-
-    # 標籤定義
-    tag = "溫和異動"
-    if pct >= 8 and turnover >= 10000000:
-      tag = "暴升爆量"
-    elif vol_ratio >= 2.0 and pct > 1:
-      tag = "主力進場"
-    elif turnover >= 30000000 and pct > 0:
-      tag = "資金挺進"
-
-    # 總分 >= 35 或單日漲幅 >= 2.5% 判定為異動股
-    if total_score >= 35 or pct >= 2.5:
-      hot_list.append({
+    # 🔴 歸類為維度 3 (爆發桶)：升幅 >= 8% 或 (量比 >= 2.0 且 升幅 >= 5%)
+    if pct >= 8.0 or (vol_ratio >= 2.0 and pct >= 5.0):
+      dim3_burst.append({
           "code": code,
           "name": name,
           "change_pct": round(pct, 2),
           "amount": turnover,
           "vol_ratio": round(vol_ratio, 1),
-          "dim": max(1, dim_count),
-          "dim_tag": tag,
-          "score": total_score,
+          "dim": 3,
+          "dim_tag": "暴升爆量" if pct >= 10 else "首日爆發",
+          "score": 300 + pct + vol_ratio * 5,
       })
+      seen_codes.add(code)
 
-  # 按綜合異動評分與漲幅排序，取前 15 隻
-  hot_list.sort(key=lambda x: (x["score"], x["change_pct"]), reverse=True)
-  return hot_list[:15]
+    # 🟡 歸類為維度 2 (主力桶)：量比 >= 1.8 且 升幅 > 1.5%
+    elif vol_ratio >= 1.8 and pct >= 1.5:
+      dim2_main.append({
+          "code": code,
+          "name": name,
+          "change_pct": round(pct, 2),
+          "amount": turnover,
+          "vol_ratio": round(vol_ratio, 1),
+          "dim": 2,
+          "dim_tag": "主力進場",
+          "score": 200 + vol_ratio * 10 + pct,
+      })
+      seen_codes.add(code)
+
+    # 🔵 歸類為維度 1 (資金桶)：成交額 >= 3000萬 且 升幅 > 0
+    elif turnover >= 30000000 and pct > 0:
+      dim1_capital.append({
+          "code": code,
+          "name": name,
+          "change_pct": round(pct, 2),
+          "amount": turnover,
+          "vol_ratio": round(vol_ratio, 1),
+          "dim": 1,
+          "dim_tag": "資金挺進",
+          "score": 100 + (turnover / 1e8) + pct,
+      })
+      seen_codes.add(code)
+
+  # 每個維度內部按 score / 漲幅 排序，各取 Top 10
+  dim3_burst.sort(key=lambda x: x["score"], reverse=True)
+  dim2_main.sort(key=lambda x: x["score"], reverse=True)
+  dim1_capital.sort(key=lambda x: x["score"], reverse=True)
+
+  dim3_top10 = dim3_burst[:10]
+  dim2_top10 = dim2_main[:10]
+  dim1_top10 = dim1_capital[:10]
+
+  # 組合總榜：按 維度3 (優先) -> 維度2 -> 維度1 順序拼接，確保 2342 類型個股排最前
+  combined_list = dim3_top10 + dim2_top10 + dim1_top10
+
+  return {
+      "combined": combined_list,  # 最多 30 隻
+      "dim3_burst": dim3_top10,  # 爆發桶 Top 10
+      "dim2_main": dim2_top10,  # 主力桶 Top 10
+      "dim1_capital": dim1_top10,  # 資金桶 Top 10
+  }
 
 
 def fetch_indices():
-  """抓取恒指、恒科、上證指數數據"""
+  """抓取三大指數即時數據"""
   url = "https://qt.gtimg.cn/q=r_hkHSI,r_hkHSTECH,sh000001"
   indices = []
   try:
     resp = requests.get(url, headers=HEADERS, timeout=8)
     txt = resp.text
 
-    # 恒指
     m_hsi = re.search(r'v_r_hkHSI="(.*)"', txt)
     if m_hsi:
       p = m_hsi.group(1).split("~")
@@ -166,7 +164,6 @@ def fetch_indices():
           "pct": round((price - prev) / prev * 100, 2),
       })
 
-    # 恒科
     m_tech = re.search(r'v_r_hkHSTECH="(.*)"', txt)
     if m_tech:
       p = m_tech.group(1).split("~")
@@ -178,7 +175,6 @@ def fetch_indices():
           "pct": round((price - prev) / prev * 100, 2),
       })
 
-    # 上證指數
     m_sh = re.search(r'v_sh000001="(.*)"', txt)
     if m_sh:
       p = m_sh.group(1).split("~")
@@ -206,17 +202,21 @@ def fetch_indices():
 
 def main():
   try:
-    hot_data = fetch_full_market_anomalies()
+    anomaly_result = fetch_full_market_anomalies()
     indices_data = fetch_indices()
 
     out = {
         "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
         "indices": indices_data,
-        "count": len(hot_data),
-        "data": hot_data,
+        "count": len(anomaly_result["combined"]),
+        "data": anomaly_result["combined"],  # 向上相容 index.html
+        "categorized": {
+            "dim3": anomaly_result["dim3_burst"],
+            "dim2": anomaly_result["dim2_main"],
+            "dim1": anomaly_result["dim1_capital"],
+        },
     }
 
-    # 同時寫入根目錄與 www 目錄（支持 PWA/Capacitor）
     with open("hot_stocks.json", "w", encoding="utf-8") as f:
       json.dump(out, f, ensure_ascii=False, indent=2)
 
@@ -225,8 +225,10 @@ def main():
       json.dump(out, f, ensure_ascii=False, indent=2)
 
     print(
-        f"SUCCESS: Captured {len(hot_data)} market anomalies across HK"
-        " stock market."
+        f"SUCCESS: Generated {len(anomaly_result['combined'])} anomalies"
+        f" (Dim3: {len(anomaly_result['dim3_burst'])}, Dim2:"
+        f" {len(anomaly_result['dim2_main'])}, Dim1:"
+        f" {len(anomaly_result['dim1_capital'])})"
     )
 
   except Exception as e:
