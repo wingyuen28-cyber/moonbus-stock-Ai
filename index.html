@@ -115,9 +115,8 @@ def make_fallback_data():
         })
     return fallback
 
-# 【新增位置 1】：抓取恒指、恒科、上證指數
 def fetch_indices():
-    """專門抓取三大指數數據"""
+    """抓取恒指、恒科、上證指數數據"""
     url = "https://qt.gtimg.cn/q=r_hkHSI,r_hkHSTECH,sh000001"
     indices = []
     
@@ -230,7 +229,6 @@ def main():
         with open("stocks.json", "w", encoding="utf-8") as f:
             json.dump(STOCKS, f, ensure_ascii=False, indent=2)
 
-        # 【新增位置 2】：在 out 字典內加入 "indices" 欄位
         out = {
             "update_time": time.strftime("%Y-%m-%d %H:%M:%S"),
             "indices": fetch_indices(),
