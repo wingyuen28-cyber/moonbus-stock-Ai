@@ -1,17 +1,17 @@
 {
-  "update_time": "2026-10-05 07:20:42",
+  "update_time": "2026-10-05 07:27:04",
   "indices": [
     {
       "name": "恒生指數",
       "symbol": "HSI",
-      "price": 23986.55,
-      "pct": 0.06
+      "price": 23968.11,
+      "pct": -0.02
     },
     {
       "name": "恒生科技",
       "symbol": "HSTECH",
-      "price": 4174.95,
-      "pct": 0.41
+      "price": 4172.6,
+      "pct": 0.35
     },
     {
       "name": "上證指數",
