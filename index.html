@@ -27,31 +27,24 @@ function fetchQ(codes){return new Promise(function(res){var q=codes.map(function
 function calcPro(s) {
   var range = (s.high - s.low) / s.prev * 100 || 0;
   
-  // A. 計算真實「委比」(-100% 到 +100%)
   var bSum = 0, aSum = 0;
   for (var j = 0; j < s.bids.length; j++) bSum += s.bids[j].vol;
   for (var k = 0; k < s.asks.length; k++) aSum += s.asks[k].vol;
   var totalOrders = bSum + aSum;
   var weibi = totalOrders > 0 ? ((bSum - aSum) / totalOrders) * 100 : 0;
 
-  // B. 計算 8 秒內的「成交速度（即市爆量程度）」
   var lastAmt = lastAmountMap[s.code] || s.amount;
   var deltaAmt = s.amount - lastAmt;
   if (deltaAmt < 0) deltaAmt = 0;
   lastAmountMap[s.code] = s.amount;
 
-  // 成交速度評分
   var speedScore = deltaAmt >= 3e6 ? 40 : (deltaAmt >= 1e6 ? 30 : (deltaAmt >= 3e5 ? 20 : 5));
-
-  // C. 委比與動能量化評分
   var weibiScore = weibi > 40 ? 30 : (weibi > 10 ? 20 : (weibi < -30 ? 0 : 10));
   var pctScore = s.pct > 2 ? 30 : (s.pct > 0.5 ? 20 : (s.pct < -2 ? 0 : 10));
 
-  // D. 交叉驗證總分
   var total = speedScore + weibiScore + pctScore;
   total = Math.min(99, Math.max(5, total));
 
-  // E. 異動類型判定
   var rating = '平淡';
   var strat = '觀望';
   
@@ -69,7 +62,6 @@ function calcPro(s) {
     strat = '逢低關注';
   }
 
-  // F. 動態支撐壓力估算 (VWAP 概念)
   var vwap = (s.high + s.low + s.price) / 3;
   var sup = Math.min(s.low, vwap * 0.985).toFixed(3);
   var resi = Math.max(s.high, vwap * 1.015).toFixed(3);
@@ -89,12 +81,47 @@ async function refreshData(){try{document.getElementById('watchlist-count').inne
 function drawChart(){try{var prices=ticks[cur]||[];if(prices.length<2)return;var cv=document.getElementById('priceChart');if(!cv)return;var ctx=cv.getContext('2d');if(chartObj)chartObj.destroy();var labels=[];for(var i=0;i<prices.length;i++)labels.push(''+i);var s=detail[cur];var up=s&&s.pct>=0;var col=up?'#10b981':'#ef4444';var bg=up?'rgba(16,185,129,0.25)':'rgba(239,68,68,0.25)';var ds={data:prices,borderColor:col,backgroundColor:bg,borderWidth:2,fill:true,tension:0.35,pointRadius:0};var cfg={type:'line',data:{labels:labels,datasets:[ds]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{position:'right',grid:{color:'#222'},ticks:{color:'#888',font:{size:10}}}}}};chartObj=new Chart(ctx,cfg);}catch(e){console.log('chart err',e)}}
 function pick(c){cur=norm(c);switchTab(2);refreshData()}
 function switchTab(n){document.getElementById('tab1-wrap').classList.toggle('hidden',n==2);document.getElementById('tab2-content').classList.toggle('hidden',n!=2);document.getElementById('tab1-btn').className=n==1?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400";document.getElementById('tab2-btn').className=n==2?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400"}
-async function loadHot(){try{var r=await fetch('https://wingyuen28-cyber.github.io/moonbus-stock-Ai/hot_stocks.json?t='+Date.now(),{cache:'no-store'});var j=await r.json();var hot=j.data||[];document.getElementById('hot-count').innerText=hot.length;var box=document.getElementById('hot-list');var html='';for(var i=0;i<hot.length;i++){var s=hot[i];var code=norm(s.code);html+='<div onclick="pick(\''+code+'\')" class="min-w-[130px] card-bg p-3 rounded-xl border border-zinc-700"><div class="font-bold gold-light text-[13px]">'+nameOf(code,s.name)+'</div><div class="text-[10px] text-zinc-500">HK.'+code+'</div><div class="text-emerald-400 font-bold">'+(s.change_pct||0)+'%</div></div>'}box.innerHTML=html}catch(e){}}
-function init(){loadHot();refreshData();setInterval(refreshData,8000)}
+async function loadHot(){
+  try{
+    var r=await fetch('https://wingyuen28-cyber.github.io/moonbus-stock-Ai/hot_stocks.json?t='+Date.now(),{cache:'no-store'});
+    var j=await r.json();
+    
+    // 1. 渲染三大指數
+    if(j.indices && j.indices.length > 0){
+      var idxBox = document.getElementById('indices-bar');
+      var idxHtml = '';
+      for(var k=0; k<j.indices.length; k++){
+        var idx = j.indices[k];
+        var up = idx.pct >= 0;
+        var tc = up ? 'text-emerald-400' : 'text-red-400';
+        var sign = up ? '+' : '';
+        idxHtml += '<div class="card-bg p-2 rounded-xl border border-zinc-800 text-center"><div class="text-[11px] text-zinc-400 font-bold">' + idx.name + '</div><div class="font-black ' + tc + ' text-[13px]">' + idx.price.toLocaleString() + '</div><div class="text-[10px] ' + tc + '">' + sign + idx.pct.toFixed(2) + '%</div></div>';
+      }
+      if(idxBox) idxBox.innerHTML = idxHtml;
+    }
+
+    // 2. 渲染全網異動榜
+    var hot=j.data||[];
+    document.getElementById('hot-count').innerText=hot.length;
+    var box=document.getElementById('hot-list');
+    var html='';
+    for(var i=0;i<hot.length;i++){
+      var s=hot[i];
+      var code=norm(s.code);
+      html+='<div onclick="pick(\''+code+'\')" class="min-w-[130px] card-bg p-3 rounded-xl border border-zinc-700"><div class="font-bold gold-light text-[13px]">'+nameOf(code,s.name)+'</div><div class="text-[10px] text-zinc-500">HK.'+code+'</div><div class="text-emerald-400 font-bold">'+(s.change_pct||0)+'%</div></div>'
+    }
+    box.innerHTML=html;
+  }catch(e){console.log('loadHot err',e)}
+}
+function init(){loadHot();refreshData();setInterval(refreshData,8000);setInterval(loadHot,60000)}
 if(document.readyState=='loading'){document.addEventListener('DOMContentLoaded',init)}else{init()}
 </script>
 <header class="sticky top-0 z-40 bg-[#0D1117]/95 px-4 py-3 border-b border-zinc-800"><div class="flex justify-between items-center max-w-md mx-auto"><h1 class="font-black flex gap-2 text-[13px]"><span class="gold">MOONBUS AI</span><span class="text-[9px] bg-white text-black px-1.5 py-0.5 rounded">V6.1</span></h1><div class="text-[10px] text-emerald-400">● 即時</div></div></header>
 <main class="max-w-md mx-auto px-4 mt-3 space-y-4">
+
+<!-- 三大指數顯示區塊 -->
+<div id="indices-bar" class="grid grid-cols-3 gap-2"></div>
+
 <section id="tab1-wrap" class="space-y-3">
 <div class="flex justify-between"><span class="font-black gold">⭐ 自選 <span id="watchlist-count">--</span></span><span class="flex gap-2"><span id="last-update" class="text-[10px] text-zinc-500"></span><button onclick="localStorage.setItem('mb_watch_v33',JSON.stringify(DEFAULT_WATCH));location.reload();" class="text-[10px] bg-yellow-400 text-black px-2 py-1 rounded-full font-black">重設</button></span></div>
 <div class="card-bg p-2.5 rounded-xl flex gap-2 border border-zinc-800"><input id="add-input" inputmode="numeric" placeholder="09988" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"><button onclick="addWatch()" class="bg-[#FACC15] text-black font-black px-5 rounded-lg text-sm">加入</button></div>
