@@ -1,26 +1,26 @@
 {
-  "update_time": "2026-10-05 01:43:41",
+  "update_time": "2026-10-05 02:01:18",
   "indices": [
     {
       "name": "恒生指數",
       "symbol": "HSI",
-      "price": 23841.75,
-      "change": -130.54,
-      "pct": -0.54
+      "price": 23906.05,
+      "change": -66.24,
+      "pct": -0.28
     },
     {
       "name": "恒生科技",
       "symbol": "HSTECH",
-      "price": 4136.74,
-      "change": -21.2,
-      "pct": -0.51
+      "price": 4154.67,
+      "change": -3.27,
+      "pct": -0.08
     },
     {
       "name": "上證指數",
       "symbol": "SSEC",
       "price": 3842.19,
-      "change": 3830.45,
-      "pct": 3839.25
+      "change": 11.74,
+      "pct": 0.31
     }
   ],
   "count": 15,
@@ -34,7 +34,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -46,7 +46,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -58,7 +58,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -70,7 +70,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -82,7 +82,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -94,7 +94,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -106,7 +106,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -118,7 +118,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -130,7 +130,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -142,7 +142,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -154,7 +154,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -166,7 +166,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -178,7 +178,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -190,7 +190,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     },
     {
@@ -202,7 +202,7 @@
       "weibi": 0.0,
       "range_pct": 0.0,
       "score": 10.0,
-      "reason": "休市/無異動展示",
+      "reason": "休市/數據加載中",
       "is_gem": false
     }
   ]
