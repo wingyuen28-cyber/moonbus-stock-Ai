@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 import json
 import os
+import re
 import time
 import requests
 
@@ -11,6 +12,10 @@ HK_TZ = timezone(timedelta(hours=8))
 HEADERS_EASTMONEY = {
     "User-Agent": "Mozilla/5.0 Chrome/120",
     "Referer": "https://quote.eastmoney.com/",
+}
+HEADERS_TENCENT = {
+    "User-Agent": "Mozilla/5.0 Chrome/120",
+    "Referer": "https://finance.qq.com/",
 }
 
 
@@ -34,7 +39,6 @@ def format_amount(t):
 def get_time_weighted_thresholds():
   """根據港股開市時間動態調整觸發門檻"""
   now = datetime.now(HK_TZ)
-  # 早盤開市前 30 分鐘（09:30 - 10:00）降低門檻以提早捕捉異動
   if (now.hour == 9 and now.minute >= 30) or (now.hour == 10 and now.minute <= 0):
     return {"dim3_pct": 6.0, "dim3_vol": 1.5, "dim2_vol": 1.5}
   return {"dim3_pct": 8.0, "dim3_vol": 2.0, "dim2_vol": 1.8}
@@ -58,7 +62,7 @@ def fetch_avg_amount_batch(codes):
 
   def fetch_one(code):
     try:
-      time.sleep(0.05)  # 溫和避開頻率限制
+      time.sleep(0.05)
       url = "https://push2.eastmoney.com/api/qt/stock/kline/get"
       params = {
           "secid": f"116.{code}",
@@ -228,31 +232,47 @@ def fetch_full_market_anomalies():
 
 
 def fetch_indices():
-  """抓取三大指數（恒指、恒生科技、上證指數）- 改用東方財富 JSON API"""
-  url = "https://push2.eastmoney.com/api/qt/ulist/get"
-  params = {
-      "secids": "100.HSI,100.HSTECH,1.000001",
-      "fields": "f2,f3,f12,f14",
-      "ut": "bd1d9ddb040897000552d05017b2e207",
-      "_": int(time.time() * 1000),
-  }
+  """抓取三大指數（恒指、恒生科技、上證指數）"""
+  url = "https://qt.gtimg.cn/q=r_hkHSI,r_hkHSTECH,sh000001"
   idx = []
   try:
-    res = fetch_with_retry(
-        url, params=params, headers=HEADERS_EASTMONEY, timeout=8, retries=2
-    )
-    if res:
-      diff = res.json().get("data", {}).get("diff", [])
-      name_map = {"HSI": "恒生指數", "HSTECH": "恒生科技", "000001": "上證指數"}
-      for item in diff:
-        code = str(item.get("f12", ""))
-        price = safe_float(item.get("f2"))
-        pct = safe_float(item.get("f3"))
-        if code in name_map and price > 0:
+    res = fetch_with_retry(url, headers=HEADERS_TENCENT, timeout=8, retries=2)
+    txt = res.text if res else ""
+
+    # 1. 抓取港股指數 (恒指 HSI, 恒生科技 HSTECH)
+    # 騰訊港股指數格式: p[3]=現價, p[5]=漲跌幅%
+    for pat, na, sy in [
+        (r'v_r_hkHSI="(.*?)"', "恒生指數", "HSI"),
+        (r'v_r_hkHSTECH="(.*?)"', "恒生科技", "HSTECH"),
+    ]:
+      m = re.search(pat, txt)
+      if m:
+        p = m.group(1).split("~")
+        if len(p) >= 6:
+          pr = safe_float(p[3])
+          pct = safe_float(p[5])  # 第 5 個欄位為騰訊提供的實時漲跌幅%
+          if pr > 0:
+            idx.append({
+                "name": na,
+                "symbol": sy,
+                "price": round(pr, 2),
+                "pct": round(pct, 2),
+            })
+
+    # 2. 抓取 A 股指數 (上證指數 SSEC)
+    # 騰訊 A 股指數格式: p[3]=現價, p[4]=昨收價
+    m = re.search(r'v_sh000001="(.*?)"', txt)
+    if m:
+      p = m.group(1).split("~")
+      if len(p) >= 5:
+        pr = safe_float(p[3])
+        pv = safe_float(p[4])
+        pct = ((pr - pv) / pv * 100) if (pr > 0 and pv > 0) else 0.0
+        if pr > 0:
           idx.append({
-              "name": name_map[code],
-              "symbol": "SSEC" if code == "000001" else code,
-              "price": round(price, 2),
+              "name": "上證指數",
+              "symbol": "SSEC",
+              "price": round(pr, 2),
               "pct": round(pct, 2),
           })
   except Exception as e:
