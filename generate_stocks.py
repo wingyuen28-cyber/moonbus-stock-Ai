@@ -2,7 +2,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 import json
 import os
-import re
 import time
 import requests
 
@@ -12,10 +11,6 @@ HK_TZ = timezone(timedelta(hours=8))
 HEADERS_EASTMONEY = {
     "User-Agent": "Mozilla/5.0 Chrome/120",
     "Referer": "https://quote.eastmoney.com/",
-}
-HEADERS_TENCENT = {
-    "User-Agent": "Mozilla/5.0 Chrome/120",
-    "Referer": "https://finance.qq.com/",
 }
 
 
@@ -46,7 +41,7 @@ def get_time_weighted_thresholds():
 
 
 def fetch_with_retry(url, params=None, headers=None, timeout=10, retries=3):
-  """帶有指數退避機制的 HTTP 請求」"""
+  """帶有指數退避機制的 HTTP 請求"""
   for i in range(retries):
     try:
       r = requests.get(url, params=params, headers=headers, timeout=timeout)
@@ -85,7 +80,6 @@ def fetch_avg_amount_batch(codes):
       if len(kl) < 2:
         return code, None, None
       amts = []
-      # 擷取歷史日 K 線（不含今天）
       for k in kl[:-1][-5:]:
         p = k.split(",")
         if len(p) >= 7:
@@ -151,7 +145,6 @@ def fetch_full_market_anomalies():
     turn = safe_float(it.get("f6"))
     vol = safe_float(it.get("f10"), 1.0)
 
-    # 過濾細價股 (<=0.15) 及成交極低股 (<500萬)
     if price <= 0.15 or turn < 5000000:
       continue
 
@@ -168,7 +161,6 @@ def fetch_full_market_anomalies():
     if (pct >= 3.0 or vol >= 1.5 or turn >= 15000000) and pct > 0:
       cands.append(c)
 
-  # 批次查詢近 5 日歷史均額
   avg_map = fetch_avg_amount_batch(cands[:60])
   d3, d2, d1 = [], [], []
 
@@ -186,7 +178,6 @@ def fetch_full_market_anomalies():
     base["surge_ratio_1d"] = round(r1, 2)
     base["amount_avg5"] = round(avg5, 2) if avg5 else 0
 
-    # 維度 3：爆發強勢 (🔴)
     if pct >= th["dim3_pct"] or (vol >= th["dim3_vol"] and pct >= 5.0):
       tag = "暴升爆量" if pct >= 10 else "首日爆發"
       d3.append({
@@ -198,7 +189,6 @@ def fetch_full_market_anomalies():
           ),
           "score": pct * 10 + vol * 5 + surge * 2,
       })
-    # 維度 2：主力進場 (🟡)
     elif vol >= th["dim2_vol"] and pct >= 1.5:
       if surge >= 1.2 or vol >= 2.5:
         d2.append({
@@ -210,7 +200,6 @@ def fetch_full_market_anomalies():
             ),
             "score": vol * 20 + surge * 10 + pct * 2,
         })
-    # 維度 1：資金挺進 (🔵)
     elif turn >= 30000000 and pct > 0:
       if (has_history and (surge >= 1.5 or r1 >= 1.8)) or (
           not has_history and turn >= 30000000
@@ -226,7 +215,6 @@ def fetch_full_market_anomalies():
             "score": surge * 20 + turn / 1e7 + pct,
         })
 
-  # 排序輸出
   d3.sort(key=lambda x: (x["change_pct"], x["surge_ratio"]), reverse=True)
   d2.sort(key=lambda x: (x["vol_ratio"], x["surge_ratio"]), reverse=True)
   d1.sort(key=lambda x: (x["surge_ratio"], x["amount"]), reverse=True)
@@ -240,64 +228,48 @@ def fetch_full_market_anomalies():
 
 
 def fetch_indices():
-  """抓取三大指數（恒指、恒生科技、上證指數）"""
-  url = "https://qt.gtimg.cn/q=r_hkHSI,r_hkHSTECH,sh000001"
+  """抓取三大指數（恒指、恒生科技、上證指數）- 改用東方財富 JSON API"""
+  url = "https://push2.eastmoney.com/api/qt/ulist/get"
+  params = {
+      "secids": "100.HSI,100.HSTECH,1.000001",
+      "fields": "f2,f3,f12,f14",
+      "ut": "bd1d9ddb040897000552d05017b2e207",
+      "_": int(time.time() * 1000),
+  }
   idx = []
   try:
-    res = fetch_with_retry(url, headers=HEADERS_TENCENT, timeout=8, retries=2)
-    txt = res.text if res else ""
-
-    def parse_tencent(m):
-      if not m:
-        return None
-      p = m.group(1).split("~")
-      if len(p) < 5 or not p[3] or not p[4]:
-        return None
-      pr = safe_float(p[3])
-      pv = safe_float(p[4])
-      if pr == 0 or pv == 0:
-        return None
-      return pr, (pr - pv) / pv * 100
-
-    for pat, na, sy in [
-        (r'v_r_hkHSI="(.*?)"', "恒生指數", "HSI"),
-        (r'v_r_hkHSTECH="(.*?)"', "恒生科技", "HSTECH"),
-    ]:
-      m = re.search(pat, txt)
-      r = parse_tencent(m)
-      if r:
-        idx.append({
-            "name": na,
-            "symbol": sy,
-            "price": round(r[0], 2),
-            "pct": round(r[1], 2),
-        })
-
-    m = re.search(r'v_sh000001="(.*?)"', txt)
-    if m:
-      p = m.group(1).split("~")
-      if len(p) > 4:
-        pr = safe_float(p[3])
-        pv = safe_float(p[4], pr)
-        if pr > 0:
+    res = fetch_with_retry(
+        url, params=params, headers=HEADERS_EASTMONEY, timeout=8, retries=2
+    )
+    if res:
+      diff = res.json().get("data", {}).get("diff", [])
+      name_map = {"HSI": "恒生指數", "HSTECH": "恒生科技", "000001": "上證指數"}
+      for item in diff:
+        code = str(item.get("f12", ""))
+        price = safe_float(item.get("f2"))
+        pct = safe_float(item.get("f3"))
+        if code in name_map and price > 0:
           idx.append({
-              "name": "上證指數",
-              "symbol": "SSEC",
-              "price": round(pr, 2),
-              "pct": round((pr - pv) / pv * 100 if pv > 0 else 0, 2),
+              "name": name_map[code],
+              "symbol": "SSEC" if code == "000001" else code,
+              "price": round(price, 2),
+              "pct": round(pct, 2),
           })
-  except Exception:
-    pass
+  except Exception as e:
+    print(f"Fetch indices error: {e}")
 
   # 保底填補
   if len(idx) < 3:
-    for d in [
-        {"name": "恒生指數", "symbol": "HSI"},
-        {"name": "恒生科技", "symbol": "HSTECH"},
-        {"name": "上證指數", "symbol": "SSEC"},
-    ]:
-      if d["symbol"] not in {i["symbol"] for i in idx}:
-        idx.append({**d, "price": 0.0, "pct": 0.0})
+    defaults = [
+        {"name": "恒生指數", "symbol": "HSI", "price": 0.0, "pct": 0.0},
+        {"name": "恒生科技", "symbol": "HSTECH", "price": 0.0, "pct": 0.0},
+        {"name": "上證指數", "symbol": "SSEC", "price": 0.0, "pct": 0.0},
+    ]
+    existing = {i["symbol"] for i in idx}
+    for d in defaults:
+      if d["symbol"] not in existing:
+        idx.append(d)
+
   return idx[:3]
 
 
@@ -318,11 +290,9 @@ def main():
       },
   }
 
-  # 寫入根目錄
   with open("hot_stocks.json", "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False, indent=2)
 
-  # 寫入 www 目錄 (支援 GitHub Pages / Web Server)
   os.makedirs("www", exist_ok=True)
   with open("www/hot_stocks.json", "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False, indent=2)
