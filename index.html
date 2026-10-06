@@ -17,7 +17,8 @@ var TRAD={"00700":"騰訊控股","09988":"阿里巴巴","03690":"美團","02342"
 var w=null;try{w=JSON.parse(localStorage.getItem('mb_watch_v33')||'null')}catch(e){w=null}
 if(!w||w.length==0){w=DEFAULT_WATCH.slice();localStorage.setItem('mb_watch_v33',JSON.stringify(w));}
 var cur='09988';var chartObj=null;var ticks={};var detail={};
-var localAnomalies=[]; // 本地前端即時捕捉到的異動股列表（雙保險）
+var localAnomalies=[]; 
+var serverHotJson = null;
 
 function norm(c){return String(c).replace(/\D/g,'').padStart(5,'0')}
 function fmtP(v){if(v==null||isNaN(v))return'--';return Number(v).toFixed(Number(v)>=10?2:3)}
@@ -26,11 +27,109 @@ function nameOf(code,raw){return TRAD[code]||raw||code}
 function addWatch(){var c=norm(document.getElementById('add-input').value);if(!c)return;if(w.indexOf(c)>=0)return alert('已在自選');if(w.length<10){w.push(c);localStorage.setItem('mb_watch_v33',JSON.stringify(w));document.getElementById('add-input').value='';refreshData()}else alert('滿10隻')}
 function delWatch(c){if(!confirm('刪 HK.'+c+'?'))return;w=w.filter(function(x){return x!=c});localStorage.setItem('mb_watch_v33',JSON.stringify(w));refreshData()}
 
-function fetchQ(codes){return new Promise(function(res){var q=codes.map(function(x){return 'r_hk'+norm(x)}).join(',');var s=document.createElement('script');s.src='https://qt.gtimg.cn/q='+q+'&_t='+Date.now();var done=false;function fin(o){if(done)return;done=true;try{document.body.removeChild(s)}catch(e){}res(o)}s.onload=function(){var o={};codes.forEach(function(rc){var code=norm(rc);var raw=window['v_r_hk'+code];if(!raw)return;var p=raw.split('~');var price=parseFloat(p[3])||0;var prev=parseFloat(p[4])||price;if(!price)price=prev;if(!price)return;var high=parseFloat(p[33])||price;var low=parseFloat(p[34])||price;var vol=parseFloat(p[6])||0;var amt=parseFloat(p[37])||0;var bids=[];var asks=[];for(var i=0;i<5;i++){var bp=parseFloat(p[9+i])||0;var bv=parseFloat(p[19+i])||0;var ap=parseFloat(p[29+i])||0;var av=parseFloat(p[39+i])||0;if(bp>0.001)bids.push({price:bp,vol:bv});if(ap>0.001)asks.push({price:ap,vol:av})}var bSum=0,aSum=0;for(var j=0;j<bids.length;j++)bSum+=bids[j].vol;for(var k=0;k<asks.length;k++)aSum+=asks[k].vol;var ratio=bSum/(aSum||1);if(ratio>9.9)ratio=9.9;if(ratio<0.1)ratio=0.1;o[code]={code:code,name:nameOf(code,p[1]),price:price,prev:prev,open:parseFloat(p[5])||price,high:high,low:low,vol:vol,amount:amt,pct:prev?((price-prev)/prev*100):0,bids:bids,asks:asks,ratio:ratio}});fin(o)};s.onerror=function(){fin({})};document.body.appendChild(s);setTimeout(function(){fin({})},4000)})}
+// -------------------------------------------------------------
+// 【8秒即時抓取】支援個股 + 頂部三大指數直連 API 刷新
+// -------------------------------------------------------------
+function fetchQ(codes){
+  return new Promise(function(res){
+    var uniqCodes = [];
+    codes.forEach(function(x){
+      var nc = norm(x);
+      if(nc && uniqCodes.indexOf(nc) === -1) uniqCodes.push(nc);
+    });
 
-// -------------------------------------------------------------
-// 【三維度動能異動】優化算子（支援大拉升如 2342 加權）
-// -------------------------------------------------------------
+    var qList = uniqCodes.map(function(x){ return 'r_hk' + x; });
+    // 包含頂部三大指數：恒指、恒生科技、上證指數
+    qList.push('r_hkHSI', 'r_hkHSTECH', 'sh000001');
+
+    var s = document.createElement('script');
+    s.src = 'https://qt.gtimg.cn/q=' + qList.join(',') + '&_t=' + Date.now();
+    var done = false;
+    
+    function fin(o){
+      if(done) return;
+      done = true;
+      try{ document.body.removeChild(s); }catch(e){}
+      res(o);
+    }
+
+    s.onload = function(){
+      var o = { _indices: [] };
+
+      // 1. 解析三大指數
+      var idxTargets = [
+        { key: 'v_r_hkHSI', name: '恒生指數', symbol: 'HSI' },
+        { key: 'v_r_hkHSTECH', name: '恒生科技', symbol: 'HSTECH' },
+        { key: 'v_sh000001', name: '上證指數', symbol: 'SSEC' }
+      ];
+      idxTargets.forEach(function(it){
+        var raw = window[it.key];
+        if(raw){
+          var p = raw.split('~');
+          var price = parseFloat(p[3]) || 0;
+          var prev = parseFloat(p[4]) || price;
+          var pct = (price > 0 && prev > 0) ? ((price - prev) / prev * 100) : 0;
+          if(price > 0){
+            o._indices.push({ name: it.name, symbol: it.symbol, price: price, pct: pct });
+          }
+        }
+      });
+
+      // 2. 解析個股報價
+      uniqCodes.forEach(function(code){
+        var raw = window['v_r_hk' + code];
+        if(!raw) return;
+        var p = raw.split('~');
+        var price = parseFloat(p[3]) || 0;
+        var prev = parseFloat(p[4]) || price;
+        if(!price) price = prev;
+        if(!price) return;
+        var high = parseFloat(p[33]) || price;
+        var low = parseFloat(p[34]) || price;
+        var vol = parseFloat(p[6]) || 0;
+        var amt = parseFloat(p[37]) || 0;
+        var bids = [], asks = [];
+        for(var i=0; i<5; i++){
+          var bp = parseFloat(p[9+i]) || 0;
+          var bv = parseFloat(p[19+i]) || 0;
+          var ap = parseFloat(p[29+i]) || 0;
+          var av = parseFloat(p[39+i]) || 0;
+          if(bp > 0.001) bids.push({ price: bp, vol: bv });
+          if(ap > 0.001) asks.push({ price: ap, vol: av });
+        }
+        var bSum = 0, aSum = 0;
+        for(var j=0; j<bids.length; j++) bSum += bids[j].vol;
+        for(var k=0; k<asks.length; k++) aSum += asks[k].vol;
+        var ratio = bSum / (aSum || 1);
+        if(ratio > 9.9) ratio = 9.9;
+        if(ratio < 0.1) ratio = 0.1;
+
+        o[code] = {
+          code: code,
+          name: nameOf(code, p[1]),
+          price: price,
+          prev: prev,
+          open: parseFloat(p[5]) || price,
+          high: high,
+          low: low,
+          vol: vol,
+          amount: amt,
+          pct: prev ? ((price - prev) / prev * 100) : 0,
+          bids: bids,
+          asks: asks,
+          ratio: ratio
+        };
+      });
+
+      fin(o);
+    };
+
+    s.onerror = function(){ fin({}); };
+    document.body.appendChild(s);
+    setTimeout(function(){ fin({}); }, 4000);
+  });
+}
+
 function calcPro(s) {
   var bSum = 0, aSum = 0;
   for (var j = 0; j < s.bids.length; j++) bSum += s.bids[j].vol;
@@ -42,19 +141,14 @@ function calcPro(s) {
   var deltaAmt = Math.max(0, s.amount - lastAmt);
   lastAmountMap[s.code] = s.amount;
 
-  // 🔴 爆發維度得分
   var burstScore = 0;
   if (s.pct >= 15) burstScore = 40;
   else if (s.pct >= 8) burstScore = 30;
   else if (s.pct >= 3) burstScore = 20;
   else if (s.pct > 0) burstScore = 10;
 
-  // 🟡 主力維度得分
   var mainScore = deltaAmt >= 2e6 ? 35 : (deltaAmt >= 5e5 ? 25 : (deltaAmt >= 1e5 ? 15 : 5));
-
-  // 🔵 資金維度得分
   var capitalScore = s.amount >= 3e7 ? 25 : (s.amount >= 1e7 ? 15 : 5);
-
   var total = Math.min(99, Math.max(5, burstScore + mainScore + capitalScore));
   
   var dimCount = 0;
@@ -81,25 +175,46 @@ function calcPro(s) {
   };
 }
 
+// -------------------------------------------------------------
+// 【8秒核心刷新函數】
+// -------------------------------------------------------------
 async function refreshData(){
   try{
-    document.getElementById('watchlist-count').innerText=w.length+'/10';
-    document.getElementById('last-update').innerText=new Date().toLocaleTimeString();
-    var uniq=[];
-    w.concat([cur]).forEach(function(c){if(uniq.indexOf(c)==-1)uniq.push(c)});
-    var data=await fetchQ(uniq);
-    var box=document.getElementById('stock-list');
-    if(!data||Object.keys(data).length==0){box.innerHTML='載入中...';setTimeout(refreshData,2000);return}
+    document.getElementById('watchlist-count').innerText = w.length + '/10';
+    document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
     
-    box.innerHTML='';
-    localAnomalies = []; // 清空本地異動列表
+    // 合併：自選股 + 當前選中股 + 異動榜單股票，一併向 API 抓取 8 秒最新動態
+    var reqCodes = w.concat([cur]);
+    if (serverHotJson && serverHotJson.categorized) {
+      ['dim3', 'dim2', 'dim1'].forEach(function(dk){
+        (serverHotJson.categorized[dk] || []).forEach(function(item){
+          if(item.code) reqCodes.push(item.code);
+        });
+      });
+    }
 
-    for(var i=0;i<w.length;i++){
-      var code=w[i];
-      var s=data[code];
-      if(!s)continue;
+    var data = await fetchQ(reqCodes);
+    
+    // 1. 即時渲染頂部三大指數 (8秒刷新)
+    if (data._indices && data._indices.length > 0) {
+      renderIndicesBar(data._indices);
+    }
+
+    var box = document.getElementById('stock-list');
+    if(!data || Object.keys(data).length <= 1){ 
+      if(box) box.innerHTML = '載入中...'; 
+      return; 
+    }
+    
+    box.innerHTML = '';
+    localAnomalies = [];
+
+    // 2. 渲染自選股
+    for(var i=0; i<w.length; i++){
+      var code = w[i];
+      var s = data[code];
+      if(!s) continue;
       
-      // 背景即時診斷自選股
       var aiResult = calcPro(s);
       if(aiResult.total >= 50 || s.pct >= 8) {
         localAnomalies.push({
@@ -112,83 +227,99 @@ async function refreshData(){
         });
       }
 
-      var up=s.pct>0.05,down=s.pct<-0.05;
-      var bc=up?'border-emerald-500':down?'border-red-500':'border-zinc-600';
-      var tc=up?'text-emerald-400':down?'text-red-400':'text-zinc-300';
-      box.innerHTML+='<div class="card-bg p-3 rounded-xl border-2 '+bc+' flex justify-between items-center"><div onclick="pick(\''+s.code+'\')" class="flex-1 cursor-pointer"><div class="font-black gold-light">'+s.name+'</div><div class="text-[11px] text-zinc-400">HK.'+s.code+' 成交額 '+fmtAmt(s.amount)+'</div></div><div class="flex gap-2 items-center"><div onclick="pick(\''+s.code+'\')" class="text-right cursor-pointer"><div class="font-black '+tc+'">$'+fmtP(s.price)+'</div><div class="text-xs '+tc+'">'+(s.pct>0?'+':'')+s.pct.toFixed(2)+'%</div></div><button onclick="delWatch(\''+s.code+'\')" class="w-6 h-6 rounded-full bg-zinc-800">X</button></div></div>';
+      var up = s.pct > 0.05, down = s.pct < -0.05;
+      var bc = up ? 'border-emerald-500' : down ? 'border-red-500' : 'border-zinc-600';
+      var tc = up ? 'text-emerald-400' : down ? 'text-red-400' : 'text-zinc-300';
+      box.innerHTML += '<div class="card-bg p-3 rounded-xl border-2 '+bc+' flex justify-between items-center"><div onclick="pick(\''+s.code+'\')" class="flex-1 cursor-pointer"><div class="font-black gold-light">'+s.name+'</div><div class="text-[11px] text-zinc-400">HK.'+s.code+' 成交額 '+fmtAmt(s.amount)+'</div></div><div class="flex gap-2 items-center"><div onclick="pick(\''+s.code+'\')" class="text-right cursor-pointer"><div class="font-black '+tc+'">$'+fmtP(s.price)+'</div><div class="text-xs '+tc+'">'+(s.pct>0?'+':'')+s.pct.toFixed(2)+'%</div></div><button onclick="delWatch(\''+s.code+'\')" class="w-6 h-6 rounded-full bg-zinc-800">X</button></div></div>';
       
-      if(!ticks[s.code])ticks[s.code]=[];
+      if(!ticks[s.code]) ticks[s.code] = [];
       ticks[s.code].push(s.price);
-      if(ticks[s.code].length>30)ticks[s.code].shift();
-      detail[s.code]=s;
+      if(ticks[s.code].length > 30) ticks[s.code].shift();
+      detail[s.code] = s;
     }
 
-    // 更新異動榜單
+    // 3. 用 8 秒最新報價更新異動榜單並重新渲染
+    if (serverHotJson && serverHotJson.categorized) {
+      ['dim3', 'dim2', 'dim1'].forEach(function(dk){
+        (serverHotJson.categorized[dk] || []).forEach(function(item){
+          var code = norm(item.code);
+          if (data[code]) {
+            item.price = data[code].price;
+            item.change_pct = data[code].pct.toFixed(2);
+            item.amount = data[code].amount;
+          }
+        });
+      });
+    }
     renderHotList();
 
+    // 4. 渲染深度頁面
     if(data[cur]){
-      var s2=data[cur];
-      detail[cur]=s2;
-      document.getElementById('s-name').innerText=s2.name;
-      document.getElementById('s-code').innerText='HK.'+s2.code;
-      document.getElementById('s-price').innerText='$'+fmtP(s2.price);
-      var el=document.getElementById('s-change');
-      el.innerText=(s2.pct>=0?'+':'')+s2.pct.toFixed(2)+'%';
-      document.getElementById('s-amount').innerText='成交額 '+fmtAmt(s2.amount)+' / '+fmtAmt(s2.vol)+'股';
-      document.getElementById('d-open').innerText='$'+fmtP(s2.open);
-      document.getElementById('d-prev').innerText='$'+fmtP(s2.prev);
-      document.getElementById('d-high').innerText='$'+fmtP(s2.high);
-      document.getElementById('d-low').innerText='$'+fmtP(s2.low);
-      document.getElementById('d-vol').innerText=fmtAmt(s2.vol);
-      document.getElementById('d-range').innerText=(((s2.high-s2.low)/s2.prev*100)||0).toFixed(2)+'%';
-      var bh='';for(var b=0;b<s2.bids.length&&b<5;b++)bh+='<div class="flex justify-between"><span>$'+fmtP(s2.bids[b].price)+'</span><span>'+fmtAmt(s2.bids[b].vol)+'</span></div>';
-      document.getElementById('bid-list').innerHTML=bh;
-      var ah='';for(var a=0;a<s2.asks.length&&a<5;a++)ah+='<div class="flex justify-between"><span>$'+fmtP(s2.asks[a].price)+'</span><span>'+fmtAmt(s2.asks[a].vol)+'</span></div>';
-      document.getElementById('ask-list').innerHTML=ah;
-      document.getElementById('ba-spread').innerText='差價 '+(s2.asks[0]&&s2.bids[0]?(s2.asks[0].price-s2.bids[0].price).toFixed(3):'--');
-      document.getElementById('ba-ratio').innerText='買賣比 '+s2.ratio.toFixed(2);
-      var ai=calcPro(s2);
-      document.getElementById('ai-score').innerText=ai.total+' /100';
-      document.getElementById('s-rating-badge').innerText=ai.rating;
-      document.getElementById('ai-resist').innerText='$'+ai.resi;
-      document.getElementById('ai-support').innerText='$'+ai.sup;
-      document.getElementById('ai-strategy').innerText=ai.strat;
-      document.getElementById('ai-comment').innerText=ai.comment;
+      var s2 = data[cur];
+      detail[cur] = s2;
+      document.getElementById('s-name').innerText = s2.name;
+      document.getElementById('s-code').innerText = 'HK.' + s2.code;
+      document.getElementById('s-price').innerText = '$' + fmtP(s2.price);
+      var el = document.getElementById('s-change');
+      el.innerText = (s2.pct >= 0 ? '+' : '') + s2.pct.toFixed(2) + '%';
+      document.getElementById('s-amount').innerText = '成交額 ' + fmtAmt(s2.amount) + ' / ' + fmtAmt(s2.vol) + '股';
+      document.getElementById('d-open').innerText = '$' + fmtP(s2.open);
+      document.getElementById('d-prev').innerText = '$' + fmtP(s2.prev);
+      document.getElementById('d-high').innerText = '$' + fmtP(s2.high);
+      document.getElementById('d-low').innerText = '$' + fmtP(s2.low);
+      document.getElementById('d-vol').innerText = fmtAmt(s2.vol);
+      document.getElementById('d-range').innerText = (((s2.high-s2.low)/s2.prev*100)||0).toFixed(2) + '%';
+      
+      var bh = ''; for(var b=0; b<s2.bids.length&&b<5; b++) bh += '<div class="flex justify-between"><span>$'+fmtP(s2.bids[b].price)+'</span><span>'+fmtAmt(s2.bids[b].vol)+'</span></div>';
+      document.getElementById('bid-list').innerHTML = bh;
+      var ah = ''; for(var a=0; a<s2.asks.length&&a<5; a++) ah += '<div class="flex justify-between"><span>$'+fmtP(s2.asks[a].price)+'</span><span>'+fmtAmt(s2.asks[a].vol)+'</span></div>';
+      document.getElementById('ask-list').innerHTML = ah;
+      
+      document.getElementById('ba-spread').innerText = '差價 ' + (s2.asks[0]&&s2.bids[0] ? (s2.asks[0].price-s2.bids[0].price).toFixed(3) : '--');
+      document.getElementById('ba-ratio').innerText = '買賣比 ' + s2.ratio.toFixed(2);
+      
+      var ai = calcPro(s2);
+      document.getElementById('ai-score').innerText = ai.total + ' /100';
+      document.getElementById('s-rating-badge').innerText = ai.rating;
+      document.getElementById('ai-resist').innerText = '$' + ai.resi;
+      document.getElementById('ai-support').innerText = '$' + ai.sup;
+      document.getElementById('ai-strategy').innerText = ai.strat;
+      document.getElementById('ai-comment').innerText = ai.comment;
       drawChart();
     }
-  }catch(e){console.log(e)}
+  } catch(e) { console.log(e); }
+}
+
+function renderIndicesBar(idxs) {
+  var idxBox = document.getElementById('indices-bar');
+  if(!idxBox || !idxs || idxs.length === 0) return;
+  var idxHtml = '';
+  for(var k=0; k<idxs.length; k++){
+    var idx = idxs[k];
+    var up = idx.pct >= 0;
+    var tc = up ? 'text-emerald-400' : 'text-red-400';
+    var sign = up ? '+' : '';
+    idxHtml += '<div class="card-bg p-2 rounded-xl border border-zinc-800 text-center">' +
+      '<div class="text-[11px] text-zinc-400 font-bold">' + idx.name + '</div>' +
+      '<div class="font-black ' + tc + ' text-[13px]">' + idx.price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '</div>' +
+      '<div class="text-[10px] ' + tc + '">' + sign + idx.pct.toFixed(2) + '%</div>' +
+    '</div>';
+  }
+  idxBox.innerHTML = idxHtml;
 }
 
 function drawChart(){try{var prices=ticks[cur]||[];if(prices.length<2)return;var cv=document.getElementById('priceChart');if(!cv)return;var ctx=cv.getContext('2d');if(chartObj)chartObj.destroy();var labels=[];for(var i=0;i<prices.length;i++)labels.push(''+i);var s=detail[cur];var up=s&&s.pct>=0;var col=up?'#10b981':'#ef4444';var bg=up?'rgba(16,185,129,0.25)':'rgba(239,68,68,0.25)';var ds={data:prices,borderColor:col,backgroundColor:bg,borderWidth:2,fill:true,tension:0.35,pointRadius:0};var cfg={type:'line',data:{labels:labels,datasets:[ds]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{position:'right',grid:{color:'#222'},ticks:{color:'#888',font:{size:10}}}}}};chartObj=new Chart(ctx,cfg);}catch(e){console.log('chart err',e)}}
 function pick(c){cur=norm(c);switchTab(2);refreshData()}
 function switchTab(n){document.getElementById('tab1-wrap').classList.toggle('hidden',n==2);document.getElementById('tab2-content').classList.toggle('hidden',n!=2);document.getElementById('tab1-btn').className=n==1?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400";document.getElementById('tab2-btn').className=n==2?"flex-1 py-2.5 text-sm rounded-lg bg-white text-black font-black":"flex-1 py-2.5 text-sm rounded-lg text-zinc-400"}
 
-var serverHotJson = null;
-
 async function loadHot(){
   try{
-    var r=await fetch('https://wingyuen28-cyber.github.io/moonbus-stock-Ai/hot_stocks.json?t='+Date.now(),{cache:'no-store'});
+    var r = await fetch('hot_stocks.json?t=' + Date.now(), {cache:'no-store'});
     serverHotJson = await r.json();
-    
-    // 渲染三大指數
-    if(serverHotJson.indices && serverHotJson.indices.length > 0){
-      var idxBox = document.getElementById('indices-bar');
-      var idxHtml = '';
-      for(var k=0; k<serverHotJson.indices.length; k++){
-        var idx = serverHotJson.indices[k];
-        var up = idx.pct >= 0;
-        var tc = up ? 'text-emerald-400' : 'text-red-400';
-        var sign = up ? '+' : '';
-        idxHtml += '<div class="card-bg p-2 rounded-xl border border-zinc-800 text-center"><div class="text-[11px] text-zinc-400 font-bold">' + idx.name + '</div><div class="font-black ' + tc + ' text-[13px]">' + idx.price.toLocaleString() + '</div><div class="text-[10px] ' + tc + '">' + sign + idx.pct.toFixed(2) + '%</div></div>';
-      }
-      if(idxBox) idxBox.innerHTML = idxHtml;
-    }
-
-    renderHotList();
-  }catch(e){console.log('loadHot err',e)}
+    refreshData();
+  }catch(e){ console.log('loadHot err', e); }
 }
 
-// 分 3 行渲染三個維度的異動清單
 function renderHotList(){
   var dim3 = [], dim2 = [], dim1 = [];
 
@@ -203,7 +334,6 @@ function renderHotList(){
       else dim1.push(s);
     });
   } else {
-    // 前端即時捕捉備用資料
     localAnomalies.forEach(function(s){
       if(s.dim === 3) dim3.push(s);
       else if(s.dim === 2) dim2.push(s);
@@ -256,8 +386,14 @@ function renderHotList(){
   if(box1) box1.innerHTML = buildRowHtml(dim1, 1);
 }
 
-function init(){loadHot();refreshData();setInterval(refreshData,8000);setInterval(loadHot,60000)}
-if(document.readyState=='loading'){document.addEventListener('DOMContentLoaded',init)}else{init()}
+function init(){
+  loadHot();
+  refreshData();
+  setInterval(refreshData, 8000); // 每 8 秒拉取一次即時行情（三大指數 + 自選股 + 異動股）
+  setInterval(loadHot, 8000);     // 每 8 秒拉取一次最新候選清單 JSON
+}
+
+if(document.readyState=='loading'){ document.addEventListener('DOMContentLoaded', init); } else { init(); }
 </script>
 
 <header class="sticky top-0 z-40 bg-[#0D1117]/95 px-4 py-3 border-b border-zinc-800"><div class="flex justify-between items-center max-w-md mx-auto"><h1 class="font-black flex gap-2 text-[13px]"><span class="gold">MOONBUS AI</span><span class="text-[9px] bg-white text-black px-1.5 py-0.5 rounded">V6.1 3D</span></h1><div class="text-[10px] text-emerald-400">● 即時</div></div></header>
