@@ -1,6 +1,6 @@
 {
-  "update_time": "2026-10-19 13:33:54",
-  "update_timestamp": 1792388034,
+  "update_time": "2026-10-19 14:11:22",
+  "update_timestamp": 1792390282,
   "indices": [
     {
       "name": "恒生指數",
@@ -17,8 +17,8 @@
     {
       "name": "上證指數",
       "symbol": "SSEC",
-      "price": 3722.95,
-      "pct": 0.18
+      "price": 3741.13,
+      "pct": 0.67
     }
   ],
   "count": 20,
