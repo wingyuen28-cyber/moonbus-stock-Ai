@@ -1,135 +1,31 @@
 {
-  "update_time": "2026-10-22 09:28:40",
-  "update_timestamp": 1792632520,
+  "update_time": "2026-10-22 10:05:06",
+  "update_timestamp": 1792634706,
   "indices": [
     {
       "name": "恒生指數",
       "symbol": "HSI",
-      "price": 23513.79,
-      "pct": -0.58
+      "price": 23168.21,
+      "pct": -2.04
     },
     {
       "name": "恒生科技",
       "symbol": "HSTECH",
-      "price": 3949.02,
-      "pct": -1.15
+      "price": 3857.97,
+      "pct": -3.42
     },
     {
       "name": "上證指數",
       "symbol": "SSEC",
-      "price": 3714.48,
-      "pct": 0.04
+      "price": 3682.05,
+      "pct": -0.83
     }
   ],
-  "count": 3,
-  "data": [
-    {
-      "code": "02476",
-      "name": "胜宏科技",
-      "price": 159.5,
-      "change_pct": 1.59,
-      "amount": 38920650.0,
-      "amount_str": "3892萬",
-      "vol_ratio": 0.7,
-      "surge_ratio": 1.0,
-      "surge_ratio_5d": 1.0,
-      "surge_ratio_1d": 1.0,
-      "amount_avg5": 0,
-      "dim": 1,
-      "dim_tag": "資金挺進",
-      "reason": "資金挺進 (3892萬 / 5日1.0x / 昨日1.0x)",
-      "score": 25.482065
-    },
-    {
-      "code": "01913",
-      "name": "普拉达",
-      "price": 39.6,
-      "change_pct": 0.81,
-      "amount": 37771915.0,
-      "amount_str": "3777萬",
-      "vol_ratio": 5.6,
-      "surge_ratio": 1.0,
-      "surge_ratio_5d": 1.0,
-      "surge_ratio_1d": 1.0,
-      "amount_avg5": 0,
-      "dim": 1,
-      "dim_tag": "資金挺進",
-      "reason": "資金挺進 (3777萬 / 5日1.0x / 昨日1.0x)",
-      "score": 24.5871915
-    },
-    {
-      "code": "09992",
-      "name": "泡泡玛特",
-      "price": 130.0,
-      "change_pct": 0.15,
-      "amount": 31928000.0,
-      "amount_str": "3193萬",
-      "vol_ratio": 0.3,
-      "surge_ratio": 1.0,
-      "surge_ratio_5d": 1.0,
-      "surge_ratio_1d": 1.0,
-      "amount_avg5": 0,
-      "dim": 1,
-      "dim_tag": "資金挺進",
-      "reason": "資金挺進 (3193萬 / 5日1.0x / 昨日1.0x)",
-      "score": 23.342799999999997
-    }
-  ],
+  "count": 0,
+  "data": [],
   "categorized": {
     "dim3": [],
     "dim2": [],
-    "dim1": [
-      {
-        "code": "02476",
-        "name": "胜宏科技",
-        "price": 159.5,
-        "change_pct": 1.59,
-        "amount": 38920650.0,
-        "amount_str": "3892萬",
-        "vol_ratio": 0.7,
-        "surge_ratio": 1.0,
-        "surge_ratio_5d": 1.0,
-        "surge_ratio_1d": 1.0,
-        "amount_avg5": 0,
-        "dim": 1,
-        "dim_tag": "資金挺進",
-        "reason": "資金挺進 (3892萬 / 5日1.0x / 昨日1.0x)",
-        "score": 25.482065
-      },
-      {
-        "code": "01913",
-        "name": "普拉达",
-        "price": 39.6,
-        "change_pct": 0.81,
-        "amount": 37771915.0,
-        "amount_str": "3777萬",
-        "vol_ratio": 5.6,
-        "surge_ratio": 1.0,
-        "surge_ratio_5d": 1.0,
-        "surge_ratio_1d": 1.0,
-        "amount_avg5": 0,
-        "dim": 1,
-        "dim_tag": "資金挺進",
-        "reason": "資金挺進 (3777萬 / 5日1.0x / 昨日1.0x)",
-        "score": 24.5871915
-      },
-      {
-        "code": "09992",
-        "name": "泡泡玛特",
-        "price": 130.0,
-        "change_pct": 0.15,
-        "amount": 31928000.0,
-        "amount_str": "3193萬",
-        "vol_ratio": 0.3,
-        "surge_ratio": 1.0,
-        "surge_ratio_5d": 1.0,
-        "surge_ratio_1d": 1.0,
-        "amount_avg5": 0,
-        "dim": 1,
-        "dim_tag": "資金挺進",
-        "reason": "資金挺進 (3193萬 / 5日1.0x / 昨日1.0x)",
-        "score": 23.342799999999997
-      }
-    ]
+    "dim1": []
   }
 }
