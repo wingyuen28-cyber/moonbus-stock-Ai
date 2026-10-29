@@ -1,18 +1,18 @@
 {
-  "update_time": "2026-10-28 22:46:56",
-  "update_timestamp": 1793198816,
+  "update_time": "2026-10-29 09:05:08",
+  "update_timestamp": 1793235908,
   "indices": [
     {
       "name": "恒生指數",
       "symbol": "HSI",
       "price": 23094.83,
-      "pct": 0.23
+      "pct": 0.0
     },
     {
       "name": "恒生科技",
       "symbol": "HSTECH",
       "price": 3853.72,
-      "pct": 1.4
+      "pct": 0.0
     },
     {
       "name": "上證指數",
@@ -21,11 +21,116 @@
       "pct": 0.91
     }
   ],
-  "count": 0,
-  "data": [],
+  "count": 3,
+  "data": [
+    {
+      "code": "06160",
+      "name": "百济神州",
+      "price": 253.0,
+      "change_pct": 15.0,
+      "amount": 25188437.0,
+      "amount_str": "2519萬",
+      "vol_ratio": 3.5,
+      "surge_ratio": 1.0,
+      "surge_ratio_5d": 1.0,
+      "surge_ratio_1d": 1.0,
+      "amount_avg5": 0,
+      "dim": 3,
+      "dim_tag": "暴升爆量",
+      "reason": "暴升爆量 (+15.00% / 量比3.5 / 額增1.0x)",
+      "score": 169.55
+    },
+    {
+      "code": "01398",
+      "name": "工商银行",
+      "price": 7.65,
+      "change_pct": 0.59,
+      "amount": 38854341.0,
+      "amount_str": "3885萬",
+      "vol_ratio": 1.6,
+      "surge_ratio": 1.0,
+      "surge_ratio_5d": 1.0,
+      "surge_ratio_1d": 1.0,
+      "amount_avg5": 0,
+      "dim": 1,
+      "dim_tag": "資金挺進",
+      "reason": "資金挺進 (3885萬 / 5日1.0x / 昨日1.0x)",
+      "score": 24.4754341
+    },
+    {
+      "code": "00700",
+      "name": "腾讯控股",
+      "price": 391.6,
+      "change_pct": 1.03,
+      "amount": 34954225.0,
+      "amount_str": "3495萬",
+      "vol_ratio": 0.2,
+      "surge_ratio": 1.0,
+      "surge_ratio_5d": 1.0,
+      "surge_ratio_1d": 1.0,
+      "amount_avg5": 0,
+      "dim": 1,
+      "dim_tag": "資金挺進",
+      "reason": "資金挺進 (3495萬 / 5日1.0x / 昨日1.0x)",
+      "score": 24.5254225
+    }
+  ],
   "categorized": {
-    "dim3": [],
+    "dim3": [
+      {
+        "code": "06160",
+        "name": "百济神州",
+        "price": 253.0,
+        "change_pct": 15.0,
+        "amount": 25188437.0,
+        "amount_str": "2519萬",
+        "vol_ratio": 3.5,
+        "surge_ratio": 1.0,
+        "surge_ratio_5d": 1.0,
+        "surge_ratio_1d": 1.0,
+        "amount_avg5": 0,
+        "dim": 3,
+        "dim_tag": "暴升爆量",
+        "reason": "暴升爆量 (+15.00% / 量比3.5 / 額增1.0x)",
+        "score": 169.55
+      }
+    ],
     "dim2": [],
-    "dim1": []
+    "dim1": [
+      {
+        "code": "01398",
+        "name": "工商银行",
+        "price": 7.65,
+        "change_pct": 0.59,
+        "amount": 38854341.0,
+        "amount_str": "3885萬",
+        "vol_ratio": 1.6,
+        "surge_ratio": 1.0,
+        "surge_ratio_5d": 1.0,
+        "surge_ratio_1d": 1.0,
+        "amount_avg5": 0,
+        "dim": 1,
+        "dim_tag": "資金挺進",
+        "reason": "資金挺進 (3885萬 / 5日1.0x / 昨日1.0x)",
+        "score": 24.4754341
+      },
+      {
+        "code": "00700",
+        "name": "腾讯控股",
+        "price": 391.6,
+        "change_pct": 1.03,
+        "amount": 34954225.0,
+        "amount_str": "3495萬",
+        "vol_ratio": 0.2,
+        "surge_ratio": 1.0,
+        "surge_ratio_5d": 1.0,
+        "surge_ratio_1d": 1.0,
+        "amount_avg5": 0,
+        "dim": 1,
+        "dim_tag": "資金挺進",
+        "reason": "資金挺進 (3495萬 / 5日1.0x / 昨日1.0x)",
+        "score": 24.5254225
+      }
+    ]
   }
 }
