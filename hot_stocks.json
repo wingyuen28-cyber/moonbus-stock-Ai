@@ -1,24 +1,24 @@
 {
-  "update_time": "2026-11-04 09:34:16",
-  "update_timestamp": 1793756056,
+  "update_time": "2026-11-04 13:00:48",
+  "update_timestamp": 1793768448,
   "indices": [
     {
       "name": "恒生指數",
       "symbol": "HSI",
-      "price": 23459.42,
-      "pct": -0.28
+      "price": 23629.54,
+      "pct": 0.44
     },
     {
       "name": "恒生科技",
       "symbol": "HSTECH",
-      "price": 3820.83,
-      "pct": -1.21
+      "price": 3860.27,
+      "pct": -0.19
     },
     {
       "name": "上證指數",
       "symbol": "SSEC",
-      "price": 3614.09,
-      "pct": 0.17
+      "price": 3624.67,
+      "pct": 0.46
     }
   ],
   "count": 0,
