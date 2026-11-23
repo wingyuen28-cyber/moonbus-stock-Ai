@@ -1,135 +1,31 @@
 {
-  "update_time": "2026-11-23 09:23:37",
-  "update_timestamp": 1795397017,
+  "update_time": "2026-11-23 17:35:49",
+  "update_timestamp": 1795426549,
   "indices": [
     {
       "name": "恒生指數",
       "symbol": "HSI",
-      "price": 22168.19,
-      "pct": -1.08
+      "price": 22383.74,
+      "pct": -0.12
     },
     {
       "name": "恒生科技",
       "symbol": "HSTECH",
-      "price": 3443.76,
-      "pct": -1.92
+      "price": 3508.0,
+      "pct": -0.09
     },
     {
       "name": "上證指數",
       "symbol": "SSEC",
-      "price": 3533.79,
-      "pct": 0.0
+      "price": 3538.95,
+      "pct": 0.15
     }
   ],
-  "count": 3,
-  "data": [
-    {
-      "code": "03010",
-      "name": "安硕亚洲除日",
-      "price": 73.0,
-      "change_pct": 0.19,
-      "amount": 208280376.0,
-      "amount_str": "2.08億",
-      "vol_ratio": 91.6,
-      "surge_ratio": 1.0,
-      "surge_ratio_5d": 1.0,
-      "surge_ratio_1d": 1.0,
-      "amount_avg5": 0,
-      "dim": 1,
-      "dim_tag": "資金挺進",
-      "reason": "資金挺進 (2.08億 / 5日1.0x / 昨日1.0x)",
-      "score": 41.0180376
-    },
-    {
-      "code": "09999",
-      "name": "网易",
-      "price": 156.8,
-      "change_pct": 1.82,
-      "amount": 77455374.0,
-      "amount_str": "7746萬",
-      "vol_ratio": 0.7,
-      "surge_ratio": 1.0,
-      "surge_ratio_5d": 1.0,
-      "surge_ratio_1d": 1.0,
-      "amount_avg5": 0,
-      "dim": 1,
-      "dim_tag": "資金挺進",
-      "reason": "資金挺進 (7746萬 / 5日1.0x / 昨日1.0x)",
-      "score": 29.5655374
-    },
-    {
-      "code": "02423",
-      "name": "贝壳-W",
-      "price": 46.9,
-      "change_pct": 0.17,
-      "amount": 34291668.0,
-      "amount_str": "3429萬",
-      "vol_ratio": 1.1,
-      "surge_ratio": 1.0,
-      "surge_ratio_5d": 1.0,
-      "surge_ratio_1d": 1.0,
-      "amount_avg5": 0,
-      "dim": 1,
-      "dim_tag": "資金挺進",
-      "reason": "資金挺進 (3429萬 / 5日1.0x / 昨日1.0x)",
-      "score": 23.599166800000003
-    }
-  ],
+  "count": 0,
+  "data": [],
   "categorized": {
     "dim3": [],
     "dim2": [],
-    "dim1": [
-      {
-        "code": "03010",
-        "name": "安硕亚洲除日",
-        "price": 73.0,
-        "change_pct": 0.19,
-        "amount": 208280376.0,
-        "amount_str": "2.08億",
-        "vol_ratio": 91.6,
-        "surge_ratio": 1.0,
-        "surge_ratio_5d": 1.0,
-        "surge_ratio_1d": 1.0,
-        "amount_avg5": 0,
-        "dim": 1,
-        "dim_tag": "資金挺進",
-        "reason": "資金挺進 (2.08億 / 5日1.0x / 昨日1.0x)",
-        "score": 41.0180376
-      },
-      {
-        "code": "09999",
-        "name": "网易",
-        "price": 156.8,
-        "change_pct": 1.82,
-        "amount": 77455374.0,
-        "amount_str": "7746萬",
-        "vol_ratio": 0.7,
-        "surge_ratio": 1.0,
-        "surge_ratio_5d": 1.0,
-        "surge_ratio_1d": 1.0,
-        "amount_avg5": 0,
-        "dim": 1,
-        "dim_tag": "資金挺進",
-        "reason": "資金挺進 (7746萬 / 5日1.0x / 昨日1.0x)",
-        "score": 29.5655374
-      },
-      {
-        "code": "02423",
-        "name": "贝壳-W",
-        "price": 46.9,
-        "change_pct": 0.17,
-        "amount": 34291668.0,
-        "amount_str": "3429萬",
-        "vol_ratio": 1.1,
-        "surge_ratio": 1.0,
-        "surge_ratio_5d": 1.0,
-        "surge_ratio_1d": 1.0,
-        "amount_avg5": 0,
-        "dim": 1,
-        "dim_tag": "資金挺進",
-        "reason": "資金挺進 (3429萬 / 5日1.0x / 昨日1.0x)",
-        "score": 23.599166800000003
-      }
-    ]
+    "dim1": []
   }
 }
