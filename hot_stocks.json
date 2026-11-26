@@ -1,18 +1,18 @@
 {
-  "update_time": "2026-11-26 02:22:00",
-  "update_timestamp": 1795630920,
+  "update_time": "2026-11-26 09:01:55",
+  "update_timestamp": 1795654915,
   "indices": [
     {
       "name": "恒生指數",
       "symbol": "HSI",
       "price": 21966.01,
-      "pct": -1.14
+      "pct": 0.0
     },
     {
       "name": "恒生科技",
       "symbol": "HSTECH",
       "price": 3378.26,
-      "pct": -2.56
+      "pct": 0.0
     },
     {
       "name": "上證指數",
@@ -21,11 +21,82 @@
       "pct": -2.03
     }
   ],
-  "count": 0,
-  "data": [],
+  "count": 2,
+  "data": [
+    {
+      "code": "00386",
+      "name": "中国石油化工股份",
+      "price": 4.48,
+      "change_pct": 2.17,
+      "amount": 30809390.0,
+      "amount_str": "3081萬",
+      "vol_ratio": 10.6,
+      "surge_ratio": 1.0,
+      "surge_ratio_5d": 1.0,
+      "surge_ratio_1d": 1.0,
+      "amount_avg5": 0,
+      "dim": 2,
+      "dim_tag": "主力進場",
+      "reason": "主力進場 (+2.17% / 量比10.6 / 額增1.0x)",
+      "score": 227.14000000000001
+    },
+    {
+      "code": "02359",
+      "name": "药明康德",
+      "price": 185.0,
+      "change_pct": 0.38,
+      "amount": 33467920.0,
+      "amount_str": "3347萬",
+      "vol_ratio": 6.4,
+      "surge_ratio": 1.0,
+      "surge_ratio_5d": 1.0,
+      "surge_ratio_1d": 1.0,
+      "amount_avg5": 0,
+      "dim": 1,
+      "dim_tag": "資金挺進",
+      "reason": "資金挺進 (3347萬 / 5日1.0x / 昨日1.0x)",
+      "score": 23.726792
+    }
+  ],
   "categorized": {
     "dim3": [],
-    "dim2": [],
-    "dim1": []
+    "dim2": [
+      {
+        "code": "00386",
+        "name": "中国石油化工股份",
+        "price": 4.48,
+        "change_pct": 2.17,
+        "amount": 30809390.0,
+        "amount_str": "3081萬",
+        "vol_ratio": 10.6,
+        "surge_ratio": 1.0,
+        "surge_ratio_5d": 1.0,
+        "surge_ratio_1d": 1.0,
+        "amount_avg5": 0,
+        "dim": 2,
+        "dim_tag": "主力進場",
+        "reason": "主力進場 (+2.17% / 量比10.6 / 額增1.0x)",
+        "score": 227.14000000000001
+      }
+    ],
+    "dim1": [
+      {
+        "code": "02359",
+        "name": "药明康德",
+        "price": 185.0,
+        "change_pct": 0.38,
+        "amount": 33467920.0,
+        "amount_str": "3347萬",
+        "vol_ratio": 6.4,
+        "surge_ratio": 1.0,
+        "surge_ratio_5d": 1.0,
+        "surge_ratio_1d": 1.0,
+        "amount_avg5": 0,
+        "dim": 1,
+        "dim_tag": "資金挺進",
+        "reason": "資金挺進 (3347萬 / 5日1.0x / 昨日1.0x)",
+        "score": 23.726792
+      }
+    ]
   }
 }
